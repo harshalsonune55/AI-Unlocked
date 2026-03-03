@@ -4,7 +4,7 @@ import Hero from "../components/Hero";
 import Footer from "../components/Footer";
 import DiscoverTrips from "../components/DiscoverTrips";
 import TrustedBy from "../components/TrustedBy";
-import "./Main.css";
+import "./main.css";
 
 export default function MainPage() {
 
