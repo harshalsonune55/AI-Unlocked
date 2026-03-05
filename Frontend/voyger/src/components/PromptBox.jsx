@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { ArrowUp } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
-const API = "http://localhost:3001";
+const API = "https://ai-unlocked-backend.onrender.com";
 
 export default function PromptBox() {
   const location = useLocation();

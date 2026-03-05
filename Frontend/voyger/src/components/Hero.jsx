@@ -2,7 +2,7 @@ import { ArrowUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
-const API = "http://localhost:3001";
+const API = "https://ai-unlocked-backend.onrender.com";
 
 export default function Hero({ displayText }) {
   const navigate = useNavigate();
