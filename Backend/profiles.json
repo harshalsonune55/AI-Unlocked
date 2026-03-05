@@ -121,5 +121,251 @@
         "a": "none"
       }
     ]
+  },
+  "7b3e0143-fe63-4f81-8f6f-efb438bf3dfe": {
+    "sessionId": "7b3e0143-fe63-4f81-8f6f-efb438bf3dfe",
+    "savedAt": "2026-03-04T13:52:56.442Z",
+    "destination": "so give me the itnary plan",
+    "budget": "10000",
+    "duration": "5 days",
+    "groupType": "solo",
+    "travelStyle": "advanture backpacking",
+    "mustHaves": "trekking",
+    "constraints": "no constrain",
+    "raw": [
+      {
+        "q": "Where are you planning to go? (Destination or region — even a rough idea works!)",
+        "a": "so give me the itnary plan"
+      },
+      {
+        "q": "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
+        "a": "10000"
+      },
+      {
+        "q": "How many days are you thinking for this trip?",
+        "a": "5 days"
+      },
+      {
+        "q": "Who's travelling — solo, couple, a group of friends, or family?",
+        "a": "solo"
+      },
+      {
+        "q": "How would you describe your travel style? (Adventure backpacking, cultural exploration, leisure & comfort, luxury, mix…)",
+        "a": "advanture backpacking"
+      },
+      {
+        "q": "What are your top 2–3 must-haves on this trip? (e.g. trekking, local street food, photography spots, nightlife, historical sites…)",
+        "a": "trekking"
+      },
+      {
+        "q": "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
+        "a": "no constrain"
+      }
+    ]
+  },
+  "f73939ec-8681-4149-a712-1d7f48e8c565": {
+    "sessionId": "f73939ec-8681-4149-a712-1d7f48e8c565",
+    "savedAt": "2026-03-04T14:03:09.890Z",
+    "destination": "on to the dubai",
+    "budget": "it is flexiable",
+    "duration": "4 days",
+    "groupType": "friends",
+    "travelStyle": "luxary",
+    "mustHaves": "nightlife",
+    "constraints": "avoid crowds",
+    "raw": [
+      {
+        "q": "Where are you planning to go? (Destination or region — even a rough idea works!)",
+        "a": "on to the dubai"
+      },
+      {
+        "q": "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
+        "a": "it is flexiable"
+      },
+      {
+        "q": "How many days are you thinking for this trip?",
+        "a": "4 days"
+      },
+      {
+        "q": "Who's travelling — solo, couple, a group of friends, or family?",
+        "a": "friends"
+      },
+      {
+        "q": "How would you describe your travel style? (Adventure backpacking, cultural exploration, leisure & comfort, luxury, mix…)",
+        "a": "luxary"
+      },
+      {
+        "q": "What are your top 2–3 must-haves on this trip? (e.g. trekking, local street food, photography spots, nightlife, historical sites…)",
+        "a": "nightlife"
+      },
+      {
+        "q": "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
+        "a": "avoid crowds"
+      }
+    ]
+  },
+  "f7a648d7-789d-49e9-b944-9f390b9fcb4e": {
+    "sessionId": "f7a648d7-789d-49e9-b944-9f390b9fcb4e",
+    "savedAt": "2026-03-04T14:18:33.950Z",
+    "destination": "i want to paln the Dubai Trip",
+    "budget": "10000",
+    "duration": "4",
+    "groupType": "solo",
+    "travelStyle": "cultural",
+    "mustHaves": "nightlife",
+    "constraints": "avoid crowds",
+    "raw": [
+      {
+        "q": "Where are you planning to go? (Destination or region — even a rough idea works!)",
+        "a": "i want to paln the Dubai Trip"
+      },
+      {
+        "q": "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
+        "a": "10000"
+      },
+      {
+        "q": "How many days are you thinking for this trip?",
+        "a": "4"
+      },
+      {
+        "q": "Who's travelling — solo, couple, a group of friends, or family?",
+        "a": "solo"
+      },
+      {
+        "q": "How would you describe your travel style? (Adventure backpacking, cultural exploration, leisure & comfort, luxury, mix…)",
+        "a": "cultural"
+      },
+      {
+        "q": "What are your top 2–3 must-haves on this trip? (e.g. trekking, local street food, photography spots, nightlife, historical sites…)",
+        "a": "nightlife"
+      },
+      {
+        "q": "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
+        "a": "avoid crowds"
+      }
+    ]
+  },
+  "cb701f18-382b-442c-94fd-871498ccb376": {
+    "sessionId": "cb701f18-382b-442c-94fd-871498ccb376",
+    "savedAt": "2026-03-04T14:19:44.197Z",
+    "destination": "Dubai",
+    "budget": "40k",
+    "duration": "7",
+    "groupType": "couple",
+    "travelStyle": "luxary",
+    "mustHaves": "historiacl",
+    "constraints": "avoid crowds",
+    "raw": [
+      {
+        "q": "Where are you planning to go? (Destination or region — even a rough idea works!)",
+        "a": "Dubai"
+      },
+      {
+        "q": "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
+        "a": "40k"
+      },
+      {
+        "q": "How many days are you thinking for this trip?",
+        "a": "7"
+      },
+      {
+        "q": "Who's travelling — solo, couple, a group of friends, or family?",
+        "a": "couple"
+      },
+      {
+        "q": "How would you describe your travel style? (Adventure backpacking, cultural exploration, leisure & comfort, luxury, mix…)",
+        "a": "luxary"
+      },
+      {
+        "q": "What are your top 2–3 must-haves on this trip? (e.g. trekking, local street food, photography spots, nightlife, historical sites…)",
+        "a": "historiacl"
+      },
+      {
+        "q": "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
+        "a": "avoid crowds"
+      }
+    ]
+  },
+  "11c093ef-05ed-48eb-ac5a-47ead1662428": {
+    "sessionId": "11c093ef-05ed-48eb-ac5a-47ead1662428",
+    "savedAt": "2026-03-04T14:22:53.670Z",
+    "destination": "i want a 5 days dubai plan",
+    "budget": "10k",
+    "duration": "56",
+    "groupType": "solo",
+    "travelStyle": "ux",
+    "mustHaves": "photo",
+    "constraints": "no cons",
+    "raw": [
+      {
+        "q": "Where are you planning to go? (Destination or region — even a rough idea works!)",
+        "a": "i want a 5 days dubai plan"
+      },
+      {
+        "q": "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
+        "a": "10k"
+      },
+      {
+        "q": "How many days are you thinking for this trip?",
+        "a": "56"
+      },
+      {
+        "q": "Who's travelling — solo, couple, a group of friends, or family?",
+        "a": "solo"
+      },
+      {
+        "q": "How would you describe your travel style? (Adventure backpacking, cultural exploration, leisure & comfort, luxury, mix…)",
+        "a": "ux"
+      },
+      {
+        "q": "What are your top 2–3 must-haves on this trip? (e.g. trekking, local street food, photography spots, nightlife, historical sites…)",
+        "a": "photo"
+      },
+      {
+        "q": "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
+        "a": "no cons"
+      }
+    ]
+  },
+  "c70bda24-98ed-4441-b540-6bc7874b3afd": {
+    "sessionId": "c70bda24-98ed-4441-b540-6bc7874b3afd",
+    "savedAt": "2026-03-04T14:25:12.699Z",
+    "destination": "dubai",
+    "budget": "20 k",
+    "duration": "4",
+    "groupType": "solo",
+    "travelStyle": "adv",
+    "mustHaves": "stree",
+    "constraints": "diet",
+    "raw": [
+      {
+        "q": "Where are you planning to go? (Destination or region — even a rough idea works!)",
+        "a": "dubai"
+      },
+      {
+        "q": "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
+        "a": "20 k"
+      },
+      {
+        "q": "How many days are you thinking for this trip?",
+        "a": "4"
+      },
+      {
+        "q": "Who's travelling — solo, couple, a group of friends, or family?",
+        "a": "solo"
+      },
+      {
+        "q": "How would you describe your travel style? (Adventure backpacking, cultural exploration, leisure & comfort, luxury, mix…)",
+        "a": "adv"
+      },
+      {
+        "q": "What are your top 2–3 must-haves on this trip? (e.g. trekking, local street food, photography spots, nightlife, historical sites…)",
+        "a": "stree"
+      },
+      {
+        "q": "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
+        "a": "diet"
+      }
+    ]
   }
 }

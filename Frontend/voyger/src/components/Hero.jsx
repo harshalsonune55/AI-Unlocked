@@ -28,8 +28,14 @@ export default function Hero({ displayText }) {
 
       // 3. Navigate to /response with session state
       navigate("/response", {
-        state: { sessionId, firstReply: data.reply, stage: data.stage },
+        state: { 
+          sessionId, 
+          firstReply: data.reply, 
+          stage: data.stage,
+          initialQuery: input   // ✅ pass the query
+        },
       });
+      setInput(""); 
     } catch (err) {
       console.error("Failed to start session:", err);
       alert("Could not connect to backend. Is server.js running?");

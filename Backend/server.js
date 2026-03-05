@@ -1,8 +1,4 @@
-// ============================================================
-//  Voyager – Planner Agent Backend
-//  Stack: Express + Groq SDK + fs (profile persistence)
-//  Run:  node server.js
-// ============================================================
+
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -15,19 +11,18 @@ app.use(cors());
 app.use(express.json());
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const MODEL = "llama-3.3-70b-versatile"; // free, fast, great quality
+const MODEL = "llama-3.3-70b-versatile"; 
 
-// ── Storage ──────────────────────────────────────────────────
 const PROFILES_FILE = "./profiles.json";
 if (!fs.existsSync(PROFILES_FILE)) fs.writeFileSync(PROFILES_FILE, "{}");
 
 const loadProfiles = () => JSON.parse(fs.readFileSync(PROFILES_FILE, "utf-8"));
 const saveProfiles = (data) => fs.writeFileSync(PROFILES_FILE, JSON.stringify(data, null, 2));
 
-// In-memory session store  { sessionId: SessionState }
+
 const sessions = new Map();
 
-// ── Stage constants ───────────────────────────────────────────
+
 const STAGES = {
   IDLE:        "idle",
   NOT_SERIOUS: "not_serious",
@@ -49,7 +44,7 @@ const REFINE_QUESTIONS = [
   "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
 ];
 
-// ── Prompt templates ──────────────────────────────────────────
+
 const SYSTEM_DETECT = `You are Voyager, an AI travel planning assistant doing intent detection.
 A user just sent their very first message. Decide if they are SERIOUS about planning a real trip,
 or just casually testing/chatting/sending something off-topic.
@@ -68,15 +63,36 @@ The user just answered a question. Your job:
 2. Immediately ask the next question given to you.
 Keep it conversational — like a well-travelled friend. Do NOT add tips, suggestions, or extra questions.`;
 
-const SYSTEM_WRAP = `You are Voyager. You have everything you need to plan an incredible trip.
-Write a warm, vivid 2-3 sentence summary painting the picture of this trip based on the profile.
-End exactly with: "Your Voyager profile is saved — ready to build your itinerary! ✈️"
-Do NOT robotically list back the answers. Make it feel exciting.`;
+const SYSTEM_WRAP = `You are Voyager, an expert travel planner.
+
+Using the traveler profile, generate a structured travel itinerary.
+
+Return ONLY valid JSON with this structure:
+
+{
+  "trip_title": "",
+  "destination": "",
+  "duration": "",
+  "budget": "",
+  "travel_style": "",
+  "itinerary": [
+    {
+      "day": 1,
+      "title": "",
+      "activities": []
+    }
+  ],
+  "estimated_cost": "",
+  "recommended_hotels": [],
+  "tips": []
+}
+
+Do not return text explanations. Return ONLY JSON.`;
 
 const SYSTEM_ASSISTANT = `You are Voyager, a brilliant AI travel assistant. The user has a saved trip profile (provided in the message).
 Be helpful, specific, and excited about their trip. Answer questions, suggest ideas, and help them plan.`;
 
-// ── Core LLM call ─────────────────────────────────────────────
+
 async function chat(systemPrompt, userContent) {
   const res = await groq.chat.completions.create({
     model: MODEL,
@@ -89,13 +105,13 @@ async function chat(systemPrompt, userContent) {
   return res.choices[0].message.content || "";
 }
 
-// ── Session factory ───────────────────────────────────────────
+
 function newSession() {
   return {
     id: randomUUID(),
     stage: STAGES.IDLE,
-    personaAnswers: [],  // [{ q, a }]
-    refineAnswers: [],   // [{ q, a }]
+    personaAnswers: [],  
+    refineAnswers: [],   
     qIndex: 0,
     profile: null,
     createdAt: new Date().toISOString(),
@@ -113,18 +129,16 @@ function getProgress(s) {
   };
 }
 
-// ── Routes ────────────────────────────────────────────────────
 
-// POST /api/session  →  start a new conversation
+
+
 app.post("/api/session", (req, res) => {
   const s = newSession();
   sessions.set(s.id, s);
   res.json({ sessionId: s.id });
 });
 
-// POST /api/chat  →  main conversation endpoint
-// Body:     { sessionId, message }
-// Response: { reply, stage, progress, profile? }
+
 app.post("/api/chat", async (req, res) => {
   const { sessionId, message } = req.body;
 
@@ -140,7 +154,7 @@ app.post("/api/chat", async (req, res) => {
 
   try {
 
-    // ── IDLE: detect intent ───────────────────────────────────
+
     if (s.stage === STAGES.IDLE) {
       const raw = await chat(SYSTEM_DETECT, userText);
       let detection;
@@ -151,9 +165,18 @@ app.post("/api/chat", async (req, res) => {
       }
 
       if (detection.serious) {
-        s.stage  = STAGES.PERSONA;
-        s.qIndex = 0;
-        reply = `Let's plan something incredible. 🌍\n\n${PERSONA_QUESTIONS[0]}`;
+
+        // If the user already mentioned destination
+        s.stage = STAGES.PERSONA;
+      
+        s.personaAnswers.push({
+          q: PERSONA_QUESTIONS[0],
+          a: userText
+        });
+      
+        s.qIndex = 1;
+      
+        reply = `Nice choice! 🌍\n\n${PERSONA_QUESTIONS[1]}`;
       } else {
         reply = "Hey! I'm Voyager — your AI trip planner. Whenever you're ready to plan a real adventure, just tell me where you want to go. ✈️";
         // stay IDLE so they can retry
@@ -196,7 +219,17 @@ app.post("/api/chat", async (req, res) => {
         const allQA = [...s.personaAnswers, ...s.refineAnswers];
         const profileContext = allQA.map((x) => `Q: ${x.q}\nA: ${x.a}`).join("\n\n");
 
-        reply = await chat(SYSTEM_WRAP, `Full traveler profile:\n\n${profileContext}`);
+        const raw = await chat(SYSTEM_WRAP, `Full traveler profile:\n\n${profileContext}`);
+
+let itinerary;
+
+try {
+  itinerary = JSON.parse(raw.replace(/```json|```/g, "").trim());
+} catch {
+  itinerary = { error: "Could not parse itinerary", raw };
+}
+
+reply = itinerary;
 
         s.profile = {
           sessionId:   s.id,
@@ -229,7 +262,13 @@ app.post("/api/chat", async (req, res) => {
     }
 
     sessions.set(s.id, s);
-    return res.json({ reply, stage: s.stage, progress: getProgress(s), profile: s.stage === STAGES.DONE ? s.profile : null });
+    return res.json({
+      reply,
+      stage: s.stage,
+      progress: getProgress(s),
+      profile: s.stage === STAGES.DONE ? s.profile : null,
+      itinerary: typeof reply === "object" ? reply : null
+    });
 
   } catch (err) {
     console.error("Agent error:", err.message);

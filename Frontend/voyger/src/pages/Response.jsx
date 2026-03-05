@@ -1,9 +1,28 @@
+import { useLocation } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import DestinationCard from "../components/DestinationCard";
 import PromptBox from "../components/PromptBox";
 
 export default function Response() {
+
+  const location = useLocation();
+
+  const itinerary = location.state?.itinerary || null;
+
+  // Convert itinerary days → cards
+  const trips =
+    itinerary?.itinerary?.map((day, index) => ({
+      id: index,
+      image: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c", // fallback image
+      title: day.title,
+      location: itinerary.destination,
+      price: itinerary.estimated_cost || "N/A",
+      duration: `Day ${day.day}`,
+      rating: "4.8",
+      tags: day.activities?.slice(0, 2) || []
+    })) || [];
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
 
@@ -14,56 +33,42 @@ export default function Response() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-orange-500/20 
                           text-orange-400 px-4 py-2 rounded-full text-sm mb-6">
-            ✈ Explore Destinations
+            ✈ AI Generated Itinerary
           </div>
 
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            Choose Your Journey
+            {itinerary?.trip_title || "Your Trip Plan"}
           </h1>
 
           <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-            Handpicked travel packages with curated itineraries,
-            world-class facilities, and unforgettable experiences.
+            Destination: {itinerary?.destination} • Duration: {itinerary?.duration}
           </p>
         </div>
 
         <PromptBox />
 
-        {/* 3 COLUMN GRID */}
+        {/* Itinerary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
 
-          <DestinationCard
-            id="old-town-heritage"
-            image="https://images.unsplash.com/photo-1505761671935-60b3a7427bad"
-            title="Old Town Heritage"
-            location="Prague, Czech Republic"
-            price="$899"
-            duration="3 Days / 2 Nights"
-            rating="4.8"
-            tags={["Cultural", "Historic"]}
-          />
-
-          <DestinationCard
-            id="mountain-adventure"
-            image="https://images.unsplash.com/photo-1501785888041-af3ef285b470"
-            title="Mountain Adventure"
-            location="Swiss Alps, Switzerland"
-            price="$1499"
-            duration="5 Days / 4 Nights"
-            rating="4.9"
-            tags={["Adventure", "Nature"]}
-          />
-
-          <DestinationCard
-            id="beach-escape-maldives"
-            image="https://images.unsplash.com/photo-1493558103817-58b2924bce98"
-            title="Beach Escape"
-            location="Maldives"
-            price="$1299"
-            duration="4 Days / 3 Nights"
-            rating="4.7"
-            tags={["Beach", "Relaxation"]}
-          />
+          {trips.length > 0 ? (
+            trips.map((trip) => (
+              <DestinationCard
+                key={trip.id}
+                id={trip.id}
+                image={trip.image}
+                title={trip.title}
+                location={trip.location}
+                price={trip.price}
+                duration={trip.duration}
+                rating={trip.rating}
+                tags={trip.tags}
+              />
+            ))
+          ) : (
+            <p className="text-gray-400 text-center col-span-3">
+              Start planning your trip using the prompt above ✈️
+            </p>
+          )}
 
         </div>
 

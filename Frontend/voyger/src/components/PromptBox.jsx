@@ -6,7 +6,7 @@ const API = "http://localhost:3001";
 
 export default function PromptBox() {
   const location = useLocation();
-  const { sessionId: initialSessionId, firstReply, stage: initialStage } = location.state || {};
+  const { sessionId: initialSessionId, firstReply, stage: initialStage, initialQuery } = location.state || {};
 
   const phrases = [
     "Modify my trip to include luxury stays...",
@@ -18,11 +18,16 @@ export default function PromptBox() {
   const [displayText, setDisplayText] = useState("");
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialQuery || "");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(initialSessionId || null);
   const [messages, setMessages] = useState(
-    firstReply ? [{ role: "assistant", text: firstReply }] : []
+    firstReply
+      ? [
+          { role: "user", text: initialQuery },
+          { role: "assistant", text: firstReply }
+        ]
+      : []
   );
   const bottomRef = useRef(null);
 
@@ -77,7 +82,16 @@ export default function PromptBox() {
         body: JSON.stringify({ sessionId: sid, message: userText }),
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text:
+            typeof data.reply === "object"
+              ? JSON.stringify(data.reply, null, 2)
+              : data.reply,
+        },
+      ]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
