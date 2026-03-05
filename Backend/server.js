@@ -5,10 +5,23 @@ import cors from "cors";
 import Groq from "groq-sdk";
 import fs from "fs";
 import { randomUUID } from "crypto";
+import connectDB from "./config/db.js";
+import passport from "./config/passport.js";
+import authRoutes from "./routes/auth.js";
+import session from "express-session";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(session({
+  secret: "voyager_secret",
+  resave: false,
+  saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+app.use("/api/auth", authRoutes);
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MODEL = "llama-3.3-70b-versatile"; 
@@ -18,6 +31,7 @@ if (!fs.existsSync(PROFILES_FILE)) fs.writeFileSync(PROFILES_FILE, "{}");
 
 const loadProfiles = () => JSON.parse(fs.readFileSync(PROFILES_FILE, "utf-8"));
 const saveProfiles = (data) => fs.writeFileSync(PROFILES_FILE, JSON.stringify(data, null, 2));
+connectDB();
 
 
 const sessions = new Map();
@@ -282,6 +296,22 @@ app.get("/api/profile/:sessionId", (req, res) => {
   const profile  = profiles[req.params.sessionId];
   if (!profile) return res.status(404).json({ error: "Profile not found" });
   res.json(profile);
+});
+
+// GET recent trips
+app.get("/api/recent-trips", (req, res) => {
+  const profiles = loadProfiles();
+
+  const trips = Object.values(profiles)
+    .sort((a,b)=> new Date(b.savedAt) - new Date(a.savedAt))
+    .slice(0,5) // latest 5 trips
+    .map(p => ({
+      sessionId: p.sessionId,
+      destination: p.destination,
+      duration: p.duration
+    }));
+
+  res.json(trips);
 });
 
 // GET /api/profiles  →  all profiles (debug)

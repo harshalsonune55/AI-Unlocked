@@ -367,5 +367,46 @@
         "a": "diet"
       }
     ]
+  },
+  "f67e1eb2-4045-4d6e-ae7b-962fd51bcee6": {
+    "sessionId": "f67e1eb2-4045-4d6e-ae7b-962fd51bcee6",
+    "savedAt": "2026-03-05T05:42:08.141Z",
+    "destination": "trip to gao",
+    "budget": "100000",
+    "duration": "make it fasr",
+    "groupType": "solo",
+    "travelStyle": "kux",
+    "mustHaves": "nig",
+    "constraints": "avoid cr",
+    "raw": [
+      {
+        "q": "Where are you planning to go? (Destination or region — even a rough idea works!)",
+        "a": "trip to gao"
+      },
+      {
+        "q": "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
+        "a": "100000"
+      },
+      {
+        "q": "How many days are you thinking for this trip?",
+        "a": "make it fasr"
+      },
+      {
+        "q": "Who's travelling — solo, couple, a group of friends, or family?",
+        "a": "solo"
+      },
+      {
+        "q": "How would you describe your travel style? (Adventure backpacking, cultural exploration, leisure & comfort, luxury, mix…)",
+        "a": "kux"
+      },
+      {
+        "q": "What are your top 2–3 must-haves on this trip? (e.g. trekking, local street food, photography spots, nightlife, historical sites…)",
+        "a": "nig"
+      },
+      {
+        "q": "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
+        "a": "avoid cr"
+      }
+    ]
   }
 }
