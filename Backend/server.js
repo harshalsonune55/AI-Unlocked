@@ -322,3 +322,6 @@ app.get("/api/profiles", (_req, res) => res.json(loadProfiles()));
 // ── Start ─────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🌍 Voyager running on http://localhost:${PORT}`));
+
+import searchRoutes from "./routes/search.js";
+app.use("/api/search", searchRoutes);
