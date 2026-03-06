@@ -47,13 +47,16 @@ router.get("/", async (req, res) => {
 
 
     const places = [
-      `${place} Local Market`,
-      `${place} View Point`,
       `${place} Old Town`,
+      `${place} Main Market`,
+      `${place} Cultural Center`,
       `${place} Nature Park`,
-      `${place} Cultural Center`
+      `${place} Scenic View Point`
     ];
 
+/* -------------------------
+   4️⃣ Travel Articles
+------------------------- */
 
     let articles = [];
 
@@ -81,31 +84,81 @@ router.get("/", async (req, res) => {
     }
 
     /* -------------------------
-       5️⃣ Hotels
+   5️⃣ Dynamic Hotels (Geoapify)
+------------------------- */
+
+let hotels = [];
+
+try {
+
+  // 1️⃣ Convert place → latitude/longitude
+  const geo = await axios.get(
+    `https://api.geoapify.com/v1/geocode/search`,
+    {
+      params: {
+        text: place,
+        apiKey: process.env.GEOAPIFY_KEY
+      }
+    }
+  );
+
+  const location = geo.data.features[0];
+
+  if (location) {
+
+    const lat = location.geometry.coordinates[1];
+    const lon = location.geometry.coordinates[0];
+
+    // 2️⃣ Search hotels near that location
+    const hotelRes = await axios.get(
+      `https://api.geoapify.com/v2/places`,
+      {
+        params: {
+          categories: "accommodation.hotel",
+          filter: `circle:${lon},${lat},5000`,
+          limit: 5,
+          apiKey: process.env.GEOAPIFY_KEY
+        }
+      }
+    );
+
+    hotels = hotelRes.data.features.map(h => ({
+      name: h.properties.name || "Hotel",
+      address: h.properties.formatted || "",
+      price_estimate: "₹1500 - ₹4000 per night"
+    }));
+
+  }
+
+} catch (err) {
+  console.log("Hotel API failed:", err.message);
+}
+    /* -------------------------
+       6️⃣ Dynamic Travel Tips
     ------------------------- */
 
-    const hotels = [
-      { name: `Zostel ${place}`, price_per_night: "₹900 - ₹1200" },
-      { name: `The Hosteller ${place}`, price_per_night: "₹1000 - ₹1500" },
-      { name: `${place} Backpacker Hostel`, price_per_night: "₹700 - ₹1000" },
-      { name: `${place} Grand Hotel`, price_per_night: "₹3000 - ₹4500" },
-      { name: `${place} Residency`, price_per_night: "₹2000 - ₹3500" }
-    ];
+    const travel_tips = [];
+
+    const temp = parseInt(weatherData.temp_C);
+
+    if (temp <= 5) {
+      travel_tips.push("Carry heavy winter clothes.");
+    }
+
+    if (temp >= 30) {
+      travel_tips.push("Stay hydrated and wear sunscreen.");
+    }
+
+    if (weatherData.weatherDesc[0].value.includes("Rain")) {
+      travel_tips.push("Carry an umbrella or raincoat.");
+    }
+
+    travel_tips.push(`Try local food specialties in ${place}.`);
+    travel_tips.push(`Explore local markets and cultural spots in ${place}.`);
+    travel_tips.push("Visit major attractions early to avoid crowds.");
 
     /* -------------------------
-       6️⃣ Travel Tips
-    ------------------------- */
-
-    const travel_tips = [
-      "Check weather before traveling.",
-      "Try local cuisine and street food.",
-      "Carry cash for local transport.",
-      "Visit major attractions early morning.",
-      "Respect local culture and traditions."
-    ];
-
-    /* -------------------------
-       7️⃣ Latest News (RSS)
+       7️⃣ Latest News
     ------------------------- */
 
     let news = [];
@@ -139,13 +192,13 @@ router.get("/", async (req, res) => {
 
     res.json({
       destination: place,
-      description: description,
+      description,
       weather: weatherData,
       top_places: places,
-      hotels: hotels,
-      travel_articles: articles.slice(0, 5),
-      latest_news: news.slice(0, 5),
-      travel_tips: travel_tips,
+      hotels,
+      travel_articles: articles.slice(0,5),
+      latest_news: news.slice(0,5),
+      travel_tips,
       budget_estimate: "₹1500 - ₹3500 per night"
     });
 
