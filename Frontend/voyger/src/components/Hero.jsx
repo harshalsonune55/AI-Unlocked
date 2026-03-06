@@ -1,48 +1,73 @@
 import { ArrowUp } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useRef } from "react";
+import { useEffect } from "react";
 
 const API = "https://ai-unlocked-backend.onrender.com";
 
 export default function Hero({ displayText }) {
-  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
+const [messages, setMessages] = useState([]);
+const bottomRef = useRef(null);
+const chatRef = useRef(null);
 
-  const handleSubmit = async () => {
-    if (!input.trim()) return;
-    setLoading(true);
 
-    try {
-      // 1. Create a new session
+useEffect(() => {
+  if (chatRef.current) {
+    chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }
+   }, [messages]);
+
+   
+
+const handleSubmit = async () => {
+  if (!input.trim() || loading) return;
+
+  const userText = input.trim();
+
+  setInput("");
+  setMessages((prev) => [...prev, { role: "user", text: userText }]);
+  setLoading(true);
+
+  try {
+
+    let sid = sessionId;
+
+    // create session once
+    if (!sid) {
       const sessionRes = await fetch(`${API}/api/session`, { method: "POST" });
-      const { sessionId } = await sessionRes.json();
-
-      // 2. Send the first message
-      const chatRes = await fetch(`${API}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, message: input }),
-      });
-      const data = await chatRes.json();
-
-      // 3. Navigate to /response with session state
-      navigate("/response", {
-        state: { 
-          sessionId, 
-          firstReply: data.reply, 
-          stage: data.stage,
-          initialQuery: input   // ✅ pass the query
-        },
-      });
-      setInput(""); 
-    } catch (err) {
-      console.error("Failed to start session:", err);
-      alert("Could not connect to backend. Is server.js running?");
-    } finally {
-      setLoading(false);
+      const data = await sessionRes.json();
+      sid = data.sessionId;
+      setSessionId(sid);
     }
-  };
+
+    const chatRes = await fetch(`${API}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: sid, message: userText }),
+    });
+
+    const data = await chatRes.json();
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        text:
+          typeof data.reply === "object"
+            ? JSON.stringify(data.reply, null, 2)
+            : data.reply,
+      },
+    ]);
+
+  } catch (err) {
+    console.error("Chat error:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") handleSubmit();
@@ -50,11 +75,21 @@ export default function Hero({ displayText }) {
 
   return (
     <section
-      className="min-h-screen w-full flex items-center justify-center 
-                 bg-cover bg-center bg-no-repeat text-white"
-      style={{ backgroundImage: "url('/background2.png')" }}
-    >
-      <div className="text-center px-6 w-full max-w-4xl">
+  className="relative min-h-screen w-full flex items-center justify-center text-white overflow-hidden"
+>
+<video
+  autoPlay
+  muted
+  loop
+  playsInline
+  className="absolute top-0 left-0 w-full h-full object-cover"
+>
+  <source src="/travel-bg.mp4" type="video/mp4" />
+</video>
+
+{/* Dark overlay for readability */}
+<div className="absolute inset-0 bg-black/60"></div>
+<div className="relative z-10 text-center px-6 w-full max-w-4xl">
         <h1 className="text-6xl md:text-7xl font-bold tracking-tight">
           Voyager
         </h1>
@@ -64,33 +99,80 @@ export default function Hero({ displayText }) {
         </p>
 
         <div className="mt-12">
-          <div className="bg-neutral-900/90 backdrop-blur-md border border-neutral-800 
-                          rounded-3xl shadow-xl p-6 md:p-8 flex items-center gap-4">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={displayText}
-              className="flex-1 bg-transparent text-white placeholder-gray-400 
-                         outline-none text-lg"
-            />
 
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="bg-white text-black p-3 rounded-full 
-                         hover:scale-105 transition disabled:opacity-50"
-            >
-              {loading ? (
-                <span className="w-[18px] h-[18px] border-2 border-black border-t-transparent 
-                                 rounded-full animate-spin block" />
-              ) : (
-                <ArrowUp size={18} />
-              )}
-            </button>
-          </div>
+    {/* CHAT HISTORY */}
+{messages.length > 0 && (
+  <div
+  ref={chatRef}
+  className="mt-8 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 
+             flex flex-col gap-4 max-h-[400px] overflow-y-auto"
+>
+
+    {messages.map((msg, i) => (
+      <div
+        key={i}
+        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+      >
+        <div
+          className={`px-4 py-3 rounded-2xl max-w-[80%] text-sm whitespace-pre-wrap
+          ${
+            msg.role === "user"
+              ? "bg-orange-500 text-white"
+              : "bg-neutral-800 text-gray-200"
+          }`}
+        >
+          {msg.text}
         </div>
+      </div>
+    ))}
+    <div ref={bottomRef}></div>
+
+    {loading && (
+      <div className="text-gray-400 text-sm">
+        Voyager is thinking...
+      </div>
+    )}
+
+    
+
+  </div>
+)}
+  <br />
+
+
+  {/* INPUT BOX */}
+  <div className="bg-neutral-900/90 backdrop-blur-md border border-neutral-800 
+                  rounded-3xl shadow-xl p-6 md:p-8 flex items-center gap-4">
+
+    <input
+      type="text"
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      onKeyDown={handleKeyDown}
+      placeholder={displayText}
+      className="flex-1 bg-transparent text-white placeholder-gray-400 
+                 outline-none text-lg"
+    />
+
+    <button
+      onClick={handleSubmit}
+      disabled={loading}
+      className="bg-white text-black p-3 rounded-full 
+                 hover:scale-105 transition disabled:opacity-50"
+    >
+      {loading ? (
+        <span className="w-[18px] h-[18px] border-2 border-black border-t-transparent 
+                         rounded-full animate-spin block" />
+      ) : (
+        <ArrowUp size={18} />
+      )}
+    </button>
+
+  </div>
+
+
+
+</div>
       </div>
     </section>
   );

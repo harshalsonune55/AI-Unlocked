@@ -19,9 +19,7 @@ router.get("/", async (req, res) => {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
     };
 
-    /* -------------------------
-       1️⃣ Wikipedia Info
-    ------------------------- */
+
 
     const wikiSearch = await axios.get(
       `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${place}&format=json`,
@@ -37,9 +35,7 @@ router.get("/", async (req, res) => {
 
     const description = wiki.data.extract;
 
-    /* -------------------------
-       2️⃣ Weather
-    ------------------------- */
+
 
     const weather = await axios.get(
       `https://wttr.in/${place}?format=j1`,
@@ -48,9 +44,7 @@ router.get("/", async (req, res) => {
 
     const weatherData = weather.data.current_condition[0];
 
-    /* -------------------------
-       3️⃣ Tourist Places
-    ------------------------- */
+
 
     const places = [
       `${place} Local Market`,
@@ -60,9 +54,6 @@ router.get("/", async (req, res) => {
       `${place} Cultural Center`
     ];
 
-    /* -------------------------
-       4️⃣ Travel Articles (Google RSS)
-    ------------------------- */
 
     let articles = [];
 
