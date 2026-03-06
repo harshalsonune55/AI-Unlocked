@@ -14,8 +14,21 @@ const loadProfiles = () => {
   return JSON.parse(fs.readFileSync(PROFILES_FILE, "utf-8"));
 };
 
+function normalizeIata(value) {
+  const code = String(value || "").trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(code) ? code : "";
+}
+
 router.post("/finalize", async (req, res) => {
-  const { sessionId, place, dep = "DEL", airline } = req.body || {};
+  const {
+    sessionId,
+    place,
+    dep,
+    from,
+    arr,
+    to,
+    airline
+  } = req.body || {};
 
   if (!sessionId && !place) {
     return res.status(400).json({ error: "sessionId or place is required" });
@@ -26,7 +39,6 @@ router.post("/finalize", async (req, res) => {
     const profile = sessionId ? profiles[sessionId] : null;
 
     const destination = place || profile?.destination;
-
     if (!destination) {
       return res.status(400).json({ error: "Could not determine destination" });
     }
@@ -36,8 +48,12 @@ router.post("/finalize", async (req, res) => {
       getPlaceImages(destination, 6)
     ]);
 
-    const arr = String(destination).slice(0, 3).toUpperCase();
-    const flights = await getFlights({ dep, arr, airline }).catch(() => []);
+    const depCode = normalizeIata(dep) || normalizeIata(from) || "";
+    const arrCode = normalizeIata(arr) || normalizeIata(to) || "";
+
+    const flights = depCode && arrCode
+      ? await getFlights({ dep: depCode, arr: arrCode, airline }).catch(() => [])
+      : [];
 
     const finalTrip = await composeFinalTrip({
       destination,
@@ -50,7 +66,11 @@ router.post("/finalize", async (req, res) => {
     return res.json({
       sessionId: sessionId || null,
       destination,
-      final_trip: finalTrip
+      final_trip: finalTrip,
+      flight_query: {
+        dep: depCode || null,
+        arr: arrCode || null
+      }
     });
   } catch (err) {
     console.error("Finalize plan error:", err.message);

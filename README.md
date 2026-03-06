@@ -97,13 +97,15 @@ Main planner flow is in `POST /api/chat` with session stages:
 
 ## Final Trip (recommended endpoint)
 - `POST /api/plan/finalize`
+- Use IATA airport codes for flights via either `dep/arr` or aliases `from/to` (e.g., `JFK` -> `CDG`).
 
 Example body:
 ```json
 {
   "sessionId": "optional-session-id",
   "place": "Rishikesh",
-  "dep": "DEL"
+  "from": "JFK",
+  "to": "CDG"
 }
 ```
 
@@ -115,12 +117,21 @@ Example response shape:
   "final_trip": {
     "trip_meta": {},
     "transport": { "flights": [] },
-    "stay": { "recommended_hostels": [] },
+    "stay": { "chosen_hotel": {}, "check_in": "", "check_out": "" },
     "destination_media": { "hero_image": {}, "gallery": [] },
-    "itinerary": [],
+    "itinerary": [
+      {
+        "day": 1,
+        "title": "",
+        "activities": [
+          { "time": "", "from": "", "to": "", "transport": "", "activity": "", "estimated_cost": "", "image": {} }
+        ]
+      }
+    ],
     "practical": {},
     "estimated_total_cost": ""
-  }
+  },
+  "flight_query": { "dep": "JFK", "arr": "CDG" }
 }
 ```
 

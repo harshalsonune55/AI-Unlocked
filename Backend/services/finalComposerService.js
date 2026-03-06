@@ -132,7 +132,7 @@ function buildFallbackFinalTrip(payload) {
     const day = idx + 1;
     return {
       day,
-      title: day === 1 ? `Arrival and local exploration` : `Explore ${payload.destination} - Day ${day}`,
+      title: day === 1 ? "Arrival and local exploration" : `Explore ${payload.destination} - Day ${day}`,
       activities: buildActivitiesForDay({
         day: idx,
         startPoint: chosenHotel.name,
@@ -172,11 +172,25 @@ function buildFallbackFinalTrip(payload) {
   };
 }
 
+function isValidActivity(activity) {
+  if (!activity || typeof activity !== "object") return false;
+  const keys = ["time", "from", "to", "transport", "activity", "estimated_cost"];
+  return keys.every((k) => typeof activity[k] === "string" && activity[k].trim().length > 0);
+}
+
 function isValidFinalTripShape(result) {
   if (!result || typeof result !== "object") return false;
   const required = ["trip_meta", "transport", "stay", "destination_media", "itinerary", "practical", "estimated_total_cost"];
   if (!required.every((key) => Object.prototype.hasOwnProperty.call(result, key))) return false;
-  return Array.isArray(result.itinerary) && result.itinerary.length > 0;
+  if (!result.stay?.chosen_hotel?.name) return false;
+  if (!Array.isArray(result.itinerary) || result.itinerary.length === 0) return false;
+
+  return result.itinerary.every((day) =>
+    day && typeof day === "object" &&
+    Array.isArray(day.activities) &&
+    day.activities.length > 0 &&
+    day.activities.every(isValidActivity)
+  );
 }
 
 export async function composeFinalTrip(payload) {
@@ -185,7 +199,6 @@ export async function composeFinalTrip(payload) {
   }
 
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
   const userContent = JSON.stringify(payload);
 
   const completion = await groq.chat.completions.create({
