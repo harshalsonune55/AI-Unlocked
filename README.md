@@ -138,6 +138,8 @@ Create `Backend/.env`:
 ```env
 PORT=3001
 MONGO_URI=<your_mongodb_uri>
+# optional alias accepted by backend as fallback
+MONGODB_URI=<your_mongodb_uri>
 GROQ_API_KEY=<your_groq_key>
 AVIATIONSTACK_KEY=<your_aviationstack_key>
 ```
