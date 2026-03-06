@@ -1,4 +1,3 @@
-
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -29,7 +28,9 @@ app.use("/api/flights", flightRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/plan", planRoutes);
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = process.env.GROQ_API_KEY
+  ? new Groq({ apiKey: process.env.GROQ_API_KEY })
+  : null;
 const MODEL = "llama-3.3-70b-versatile"; 
 
 const PROFILES_FILE = "./profiles.json";
@@ -114,6 +115,10 @@ Be helpful, specific, and excited about their trip. Answer questions, suggest id
 
 
 async function chat(systemPrompt, userContent) {
+  if (!groq) {
+    throw new Error("GROQ_API_KEY is missing. Add it to Backend/.env before using AI chat endpoints.");
+  }
+
   const res = await groq.chat.completions.create({
     model: MODEL,
     max_tokens: 1024,
