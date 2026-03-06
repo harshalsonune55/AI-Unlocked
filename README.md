@@ -63,9 +63,9 @@ Main planner flow is in `POST /api/chat` with session stages:
 `GET /api/search?place=...` returns raw destination context only:
 - destination summary
 - weather snapshot
-- top places
-- hotel/hostel options
-- travel links and tips
+- top places (Wikipedia geosearch + related pages)
+- hotel/hostel options (OpenStreetMap Overpass tourism data)
+- travel links and weather-aware tips
 
 > Note: this endpoint is **not** the final trip itinerary; use `/api/plan/finalize` for a complete step-by-step plan.
 

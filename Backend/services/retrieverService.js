@@ -3,25 +3,7 @@ import * as cheerio from "cheerio";
 
 const headers = {
   "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
-};
-
-const fallbackTravelTips = [
-  "Check weather before traveling.",
-  "Try local cuisine and street food.",
-  "Carry cash for local transport.",
-  "Visit major attractions early morning.",
-  "Respect local culture and traditions."
-];
-
-const curatedPlaces = {
-  rishikesh: [
-    "Laxman Jhula",
-    "Ram Jhula",
-    "Triveni Ghat",
-    "Parmarth Niketan",
-    "Neer Garh Waterfall"
-  ]
+    "Voyager-AI-Unlocked/1.0 (contact: local-dev)"
 };
 
 function toTitleCase(text) {
@@ -31,30 +13,238 @@ function toTitleCase(text) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function toNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function dedupeTitles(items) {
+  const seen = new Set();
+  const result = [];
+  for (const item of items) {
+    const name = String(item || "").trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(name);
+  }
+  return result;
+}
+
+function estimatePriceBand(name, type) {
+  const hay = `${name} ${type}`.toLowerCase();
+  if (hay.includes("hostel") || hay.includes("dorm")) return "₹600 - ₹1800";
+  if (hay.includes("resort") || hay.includes("spa") || hay.includes("luxury")) return "₹6000 - ₹15000";
+  if (hay.includes("hotel") || hay.includes("inn")) return "₹2500 - ₹7000";
+  return "₹1800 - ₹5000";
+}
+
+function buildWeatherAwareTips(weather) {
+  const tips = [
+    "Carry a reusable water bottle and stay hydrated.",
+    "Start major attractions early to avoid crowds.",
+    "Keep digital and offline copies of important bookings."
+  ];
+
+  const tempC = Number(weather?.temp_C);
+  if (Number.isFinite(tempC)) {
+    if (tempC >= 32) tips.push("Pack breathable clothes, sunscreen, and a cap for daytime heat.");
+    if (tempC <= 12) tips.push("Carry warm layers for mornings and evenings.");
+  }
+
+  const rainMm = Number(weather?.precipMM);
+  if (Number.isFinite(rainMm) && rainMm > 0) {
+    tips.push("Keep a light rain jacket/umbrella due to expected precipitation.");
+  }
+
+  const wind = Number(weather?.windspeedKmph);
+  if (Number.isFinite(wind) && wind >= 25) {
+    tips.push("Plan buffer time for transit as stronger winds may affect travel.");
+  }
+
+  return dedupeTitles(tips).slice(0, 6);
+}
+
+async function fetchWikiContext(place) {
+  const wikiSearch = await axios.get(
+    "https://en.wikipedia.org/w/api.php",
+    {
+      headers,
+      params: {
+        action: "query",
+        list: "search",
+        srsearch: place,
+        format: "json",
+        origin: "*"
+      }
+    }
+  );
+
+  const first = wikiSearch.data?.query?.search?.[0] || {};
+  const pageTitle = first.title || place;
+  const pageId = first.pageid;
+
+  const wikiSummary = await axios.get(
+    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`,
+    { headers }
+  );
+
+  const description = wikiSummary.data?.extract || `Travel information for ${place}`;
+
+  return {
+    pageTitle,
+    pageId,
+    description,
+    coordinates: {
+      lat: toNumber(wikiSummary.data?.coordinates?.lat),
+      lon: toNumber(wikiSummary.data?.coordinates?.lon)
+    },
+    nearbyTitleHints: (wikiSearch.data?.query?.search || []).map((x) => x.title).slice(0, 10)
+  };
+}
+
+async function fetchTopPlacesFromWiki({ lat, lon, pageTitle, nearbyTitleHints }) {
+  let places = [...(nearbyTitleHints || [])];
+
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    try {
+      const geo = await axios.get("https://en.wikipedia.org/w/api.php", {
+        headers,
+        params: {
+          action: "query",
+          list: "geosearch",
+          gscoord: `${lat}|${lon}`,
+          gsradius: 10000,
+          gslimit: 30,
+          format: "json",
+          origin: "*"
+        }
+      });
+
+      const geoTitles = (geo.data?.query?.geosearch || [])
+        .map((x) => x.title)
+        .filter(Boolean);
+
+      places = [...geoTitles, ...places];
+    } catch {
+      // no-op fallback to search hints
+    }
+  }
+
+  const cleaned = dedupeTitles(places)
+    .filter((title) => title.toLowerCase() !== String(pageTitle || "").toLowerCase())
+    .filter((title) => !/district|state|country|population|language/i.test(title))
+    .slice(0, 8);
+
+  return cleaned;
+}
+
+async function fetchHotelsFromOverpass({ lat, lon }) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return [];
+  }
+
+  try {
+    const overpassQuery = `
+      [out:json][timeout:20];
+      (
+        node["tourism"~"hotel|hostel|guest_house"](around:12000,${lat},${lon});
+        way["tourism"~"hotel|hostel|guest_house"](around:12000,${lat},${lon});
+        relation["tourism"~"hotel|hostel|guest_house"](around:12000,${lat},${lon});
+      );
+      out tags center 25;
+    `;
+
+    const overpass = await axios.post(
+      "https://overpass-api.de/api/interpreter",
+      overpassQuery,
+      {
+        headers: {
+          ...headers,
+          "Content-Type": "text/plain"
+        }
+      }
+    );
+
+    const elements = overpass.data?.elements || [];
+    const mapped = elements
+      .map((el) => {
+        const tags = el.tags || {};
+        const name = tags.name || "";
+        const type = tags.tourism || "stay";
+        if (!name) return null;
+        return {
+          name,
+          type,
+          price_per_night: estimatePriceBand(name, type)
+        };
+      })
+      .filter(Boolean);
+
+    const unique = [];
+    const seen = new Set();
+    for (const item of mapped) {
+      const key = item.name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push({ name: item.name, price_per_night: item.price_per_night });
+      if (unique.length >= 8) break;
+    }
+
+    return unique;
+  } catch {
+    return [];
+  }
+}
+
+async function fetchTravelArticles(place) {
+  try {
+    const blogSearch = await axios.get(
+      `https://www.bing.com/search?q=${encodeURIComponent(place + " travel guide")}`,
+      { headers }
+    );
+
+    const $ = cheerio.load(blogSearch.data);
+    const articles = [];
+
+    $("li.b_algo h2 a").each((_, el) => {
+      articles.push({
+        title: $(el).text(),
+        link: $(el).attr("href")
+      });
+    });
+
+    return articles.slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
 export async function retrieveDestinationData(place) {
   if (!place?.trim()) {
     throw new Error("place is required");
   }
 
   const normalizedPlace = toTitleCase(place);
+  let wiki = {
+    pageTitle: normalizedPlace,
+    pageId: null,
+    description: `Travel information for ${normalizedPlace}`,
+    coordinates: { lat: null, lon: null },
+    nearbyTitleHints: []
+  };
 
-  let description = `Travel information for ${normalizedPlace}`;
   try {
-    const wikiSearch = await axios.get(
-      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(normalizedPlace)}&format=json`,
-      { headers }
-    );
-
-    const pageTitle = wikiSearch.data?.query?.search?.[0]?.title || normalizedPlace;
-
-    const wiki = await axios.get(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`,
-      { headers }
-    );
-
-    description = wiki.data?.extract || description;
+    wiki = await fetchWikiContext(normalizedPlace);
   } catch {
-    description = `Travel information for ${normalizedPlace}`;
+    wiki = {
+      pageTitle: normalizedPlace,
+      pageId: null,
+      description: `Travel information for ${normalizedPlace}`,
+      coordinates: { lat: null, lon: null },
+      nearbyTitleHints: []
+    };
   }
 
   const weather = await axios
@@ -62,49 +252,31 @@ export async function retrieveDestinationData(place) {
     .then((res) => res.data?.current_condition?.[0] || null)
     .catch(() => null);
 
-  const key = normalizedPlace.toLowerCase();
-  const topPlaces = curatedPlaces[key] || [
-    `${normalizedPlace} Local Market`,
-    `${normalizedPlace} View Point`,
-    `${normalizedPlace} Old Town`,
-    `${normalizedPlace} Nature Park`,
-    `${normalizedPlace} Cultural Center`
-  ];
+  const [topPlaces, hotels, travelArticles] = await Promise.all([
+    fetchTopPlacesFromWiki(wiki),
+    fetchHotelsFromOverpass({
+      lat: wiki.coordinates.lat,
+      lon: wiki.coordinates.lon
+    }),
+    fetchTravelArticles(normalizedPlace)
+  ]);
 
-  let travelArticles = [];
-  try {
-    const blogSearch = await axios.get(
-      `https://www.bing.com/search?q=${encodeURIComponent(normalizedPlace + " travel guide")}`,
-      { headers }
-    );
+  const travelTips = buildWeatherAwareTips(weather);
 
-    const $ = cheerio.load(blogSearch.data);
-    $("li.b_algo h2 a").each((_, el) => {
-      travelArticles.push({
-        title: $(el).text(),
-        link: $(el).attr("href")
-      });
-    });
-  } catch {
-    travelArticles = [];
+  let budgetEstimate = "Not enough data";
+  if (hotels.length > 0) {
+    const hasHostel = hotels.some((h) => /hostel/i.test(h.name));
+    budgetEstimate = hasHostel ? "₹1200 - ₹4000 per night" : "₹2500 - ₹8000 per night";
   }
-
-  const hotels = [
-    { name: `Zostel ${normalizedPlace}`, price_per_night: "₹900 - ₹1200" },
-    { name: `The Hosteller ${normalizedPlace}`, price_per_night: "₹1000 - ₹1500" },
-    { name: `${normalizedPlace} Backpacker Hostel`, price_per_night: "₹700 - ₹1000" },
-    { name: `${normalizedPlace} Grand Hotel`, price_per_night: "₹3000 - ₹4500" },
-    { name: `${normalizedPlace} Residency`, price_per_night: "₹2000 - ₹3500" }
-  ];
 
   return {
     destination: normalizedPlace,
-    description,
+    description: wiki.description,
     weather,
     top_places: topPlaces,
     hotels,
-    travel_articles: travelArticles.slice(0, 5),
-    travel_tips: fallbackTravelTips,
-    budget_estimate: "₹1500 - ₹3500 per night"
+    travel_articles: travelArticles,
+    travel_tips: travelTips,
+    budget_estimate: budgetEstimate
   };
 }
