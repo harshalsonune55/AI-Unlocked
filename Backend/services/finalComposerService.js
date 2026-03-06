@@ -59,7 +59,12 @@ Important:
 
 function safeJsonParse(raw) {
   try {
-    return JSON.parse(String(raw).replace(/```json|```/g, "").trim());
+    const cleaned = String(raw)
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    return JSON.parse(cleaned);
   } catch {
     return null;
   }
