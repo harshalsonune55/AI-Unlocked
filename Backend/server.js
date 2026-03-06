@@ -10,6 +10,8 @@ import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import session from "express-session";
 import flightRoutes from "./routes/flights.js";
+import searchRoutes from "./routes/search.js";
+import planRoutes from "./routes/plan.js";
 
 const app = express();
 app.use(cors());
@@ -24,6 +26,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use("/api/auth", authRoutes);
 app.use("/api/flights", flightRoutes);
+app.use("/api/search", searchRoutes);
+app.use("/api/plan", planRoutes);
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MODEL = "llama-3.3-70b-versatile"; 
@@ -323,5 +327,3 @@ app.get("/api/profiles", (_req, res) => res.json(loadProfiles()));
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🌍 Voyager running on http://localhost:${PORT}`));
 
-import searchRoutes from "./routes/search.js";
-app.use("/api/search", searchRoutes);
