@@ -14,33 +14,56 @@ const fallbackTravelTips = [
   "Respect local culture and traditions."
 ];
 
+const curatedPlaces = {
+  rishikesh: [
+    "Laxman Jhula",
+    "Ram Jhula",
+    "Triveni Ghat",
+    "Parmarth Niketan",
+    "Neer Garh Waterfall"
+  ]
+};
+
+function toTitleCase(text) {
+  return String(text || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export async function retrieveDestinationData(place) {
   if (!place?.trim()) {
     throw new Error("place is required");
   }
 
-  const normalizedPlace = place.trim();
+  const normalizedPlace = toTitleCase(place);
 
-  const wikiSearch = await axios.get(
-    `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(normalizedPlace)}&format=json`,
-    { headers }
-  );
+  let description = `Travel information for ${normalizedPlace}`;
+  try {
+    const wikiSearch = await axios.get(
+      `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(normalizedPlace)}&format=json`,
+      { headers }
+    );
 
-  const pageTitle = wikiSearch.data?.query?.search?.[0]?.title || normalizedPlace;
+    const pageTitle = wikiSearch.data?.query?.search?.[0]?.title || normalizedPlace;
 
-  const wiki = await axios.get(
-    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`,
-    { headers }
-  );
+    const wiki = await axios.get(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`,
+      { headers }
+    );
 
-  const description = wiki.data?.extract || `Travel information for ${normalizedPlace}`;
+    description = wiki.data?.extract || description;
+  } catch {
+    description = `Travel information for ${normalizedPlace}`;
+  }
 
   const weather = await axios
     .get(`https://wttr.in/${encodeURIComponent(normalizedPlace)}?format=j1`, { headers })
     .then((res) => res.data?.current_condition?.[0] || null)
     .catch(() => null);
 
-  const topPlaces = [
+  const key = normalizedPlace.toLowerCase();
+  const topPlaces = curatedPlaces[key] || [
     `${normalizedPlace} Local Market`,
     `${normalizedPlace} View Point`,
     `${normalizedPlace} Old Town`,

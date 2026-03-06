@@ -60,12 +60,14 @@ Main planner flow is in `POST /api/chat` with session stages:
 - `done` → free chat with saved profile context
 
 ## 2) Retriever Agent (destination intelligence)
-`GET /api/search?place=...` returns:
+`GET /api/search?place=...` returns raw destination context only:
 - destination summary
 - weather snapshot
-- top places (curated placeholders)
+- top places
 - hotel/hostel options
 - travel links and tips
+
+> Note: this endpoint is **not** the final trip itinerary; use `/api/plan/finalize` for a complete step-by-step plan.
 
 ## 3) Finalizer Agent (new)
 `POST /api/plan/finalize` orchestrates:
@@ -73,7 +75,7 @@ Main planner flow is in `POST /api/chat` with session stages:
 2. retrieve destination data
 3. fetch destination images (Wikimedia)
 4. fetch flights (Aviationstack)
-5. compose final strict JSON (Groq + fallback)
+5. compose final strict JSON (Groq + fallback) with concrete hotel selection and movement plan (from A to B)
 
 ---
 
