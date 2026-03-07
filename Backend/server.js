@@ -54,6 +54,7 @@ const STAGES = {
 
 const PERSONA_QUESTIONS = [
   "Where are you planning to go? (Destination or region — even a rough idea works!)",
+  "Where will you be starting from? (City or nearest airport code so I can suggest to-and-fro flights)",
   "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
   "How many days are you thinking for this trip?",
   "Who's travelling — solo, couple, a group of friends, or family?",
@@ -92,6 +93,7 @@ Return ONLY valid JSON with this structure:
 
 {
   "trip_title": "",
+  "starting_from": "",
   "destination": "",
   "duration": "",
   "budget": "",
@@ -260,10 +262,11 @@ reply = itinerary;
           sessionId:   s.id,
           savedAt:     new Date().toISOString(),
           destination: s.personaAnswers[0]?.a,
-          budget:      s.personaAnswers[1]?.a,
-          duration:    s.personaAnswers[2]?.a,
-          groupType:   s.personaAnswers[3]?.a,
-          travelStyle: s.personaAnswers[4]?.a,
+          startingFrom: s.personaAnswers[1]?.a,
+          budget:      s.personaAnswers[2]?.a,
+          duration:    s.personaAnswers[3]?.a,
+          groupType:   s.personaAnswers[4]?.a,
+          travelStyle: s.personaAnswers[5]?.a,
           mustHaves:   s.refineAnswers[0]?.a,
           constraints: s.refineAnswers[1]?.a,
           raw: allQA,
@@ -331,4 +334,3 @@ app.get("/api/profiles", (_req, res) => res.json(loadProfiles()));
 // ── Start ─────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🌍 Voyager running on http://localhost:${PORT}`));
-
