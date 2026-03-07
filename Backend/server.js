@@ -10,6 +10,8 @@ import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import session from "express-session";
 import flightRoutes from "./routes/flights.js";
+import travelRoutes from "./routes/travel.js";
+import recentTripsRoutes from "./routes/recentTrips.js";
 
 const app = express();
 app.use(cors());
@@ -24,6 +26,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use("/api/auth", authRoutes);
 app.use("/api/flights", flightRoutes);
+app.use("/api/travel", travelRoutes);
+app.use("/api/recent-trips", recentTripsRoutes);
+
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MODEL = "llama-3.3-70b-versatile"; 
@@ -156,7 +161,7 @@ app.post("/api/session", (req, res) => {
 
 
 app.post("/api/chat", async (req, res) => {
-  const { sessionId, message } = req.body;
+  const { sessionId, message, userEmail } = req.body;
 
   if (!sessionId || !message?.trim())
     return res.status(400).json({ error: "sessionId and message are required" });
@@ -249,6 +254,7 @@ reply = itinerary;
 
         s.profile = {
           sessionId:   s.id,
+          userEmail: userEmail,
           savedAt:     new Date().toISOString(),
           destination: s.personaAnswers[0]?.a,
           budget:      s.personaAnswers[1]?.a,
@@ -302,9 +308,11 @@ app.get("/api/profile/:sessionId", (req, res) => {
 
 // GET recent trips
 app.get("/api/recent-trips", (req, res) => {
+  const { email } = req.query;
   const profiles = loadProfiles();
 
   const trips = Object.values(profiles)
+  .filter(p => p.userEmail === email)
     .sort((a,b)=> new Date(b.savedAt) - new Date(a.savedAt))
     .slice(0,5) // latest 5 trips
     .map(p => ({

@@ -2,32 +2,31 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { User } from "lucide-react";
 
-const API = "https://ai-unlocked-backend.onrender.com/api/trips";
 
 export default function Navbar() {
 
   const navigate = useNavigate();
   const [user,setUser] = useState(null);
   const [open,setOpen] = useState(false);
-  const [trips,setTrips] = useState([]);
+  const [recentTrips, setRecentTrips] = useState([]);
+ 
 
-  useEffect(()=>{
+  useEffect(() => {
+
     const storedUser = localStorage.getItem("user");
-    if(storedUser){
-      setUser(JSON.parse(storedUser));
-    }
-  },[]);
-  useEffect(()=>{
-    const storedUser = localStorage.getItem("user");
-    if(storedUser){
-      setUser(JSON.parse(storedUser));
   
-      fetch(API)
-        .then(res=>res.json())
-        .then(data=>setTrips(data))
-        .catch(()=>setTrips([]));
+    if (storedUser) {
+  
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+  
+      fetch(`http://localhost:3001/api/recent-trips?email=${parsedUser.email}`)
+        .then(res => res.json())
+        .then(data => setRecentTrips(data))
+        .catch(() => setRecentTrips([]));
     }
-  },[]);
+  
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -45,7 +44,11 @@ export default function Navbar() {
       {/* Logo */}
       <div className="flex items-center gap-2 text-2xl font-semibold">
         <div className="w-6 h-6 bg-gradient-to-br from-pink-500 to-orange-500 rounded-md"></div>
-        Voyager
+        <Link
+              to="/"
+            >
+              Voyger
+        </Link>
       </div>
 
       {/* Center Menu */}
@@ -104,19 +107,21 @@ export default function Navbar() {
 
   <div className="flex flex-col gap-2 text-sm">
 
-    {trips.length === 0 && (
-      <span className="text-gray-500">No trips yet</span>
-    )}
+    
 
-    {trips.map((trip)=>(
-      <button
-        key={trip.sessionId}
-        className="text-left hover:text-white text-gray-300"
-        onClick={()=>navigate(`/response?session=${trip.sessionId}`)}
-      >
-        {trip.destination} • {trip.duration}
-      </button>
-    ))}
+{recentTrips.length === 0 && (
+  <span className="text-gray-500">No trips yet</span>
+)}
+
+{recentTrips.map((trip)=>(
+  <button
+    key={trip.sessionId}
+    className="text-left hover:text-white text-gray-300"
+    onClick={()=>navigate(`/response?session=${trip.sessionId}`)}
+  >
+    {trip.destination} • {trip.duration} days
+  </button>
+))}
 
   </div>
 </div>

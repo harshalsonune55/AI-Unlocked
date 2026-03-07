@@ -3,6 +3,23 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 
 const router = express.Router();
+async function getWikiImage(title) {
+  try {
+    const res = await axios.get(
+      `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(
+        title
+      )}&prop=pageimages&format=json&pithumbsize=800`
+    );
+
+    const pages = res.data.query.pages;
+    const page = Object.values(pages)[0];
+
+    return page?.thumbnail?.source || null;
+  } catch (err) {
+    return null;
+  }
+}
+
 
 router.get("/", async (req, res) => {
 
@@ -27,6 +44,7 @@ router.get("/", async (req, res) => {
     );
 
     const pageTitle = wikiSearch.data.query.search[0]?.title || place;
+    const destinationImage = await getWikiImage(pageTitle);
 
     const wiki = await axios.get(
       `https://en.wikipedia.org/api/rest_v1/page/summary/${pageTitle}`,
@@ -46,13 +64,20 @@ router.get("/", async (req, res) => {
 
 
 
-    const places = [
+    const placeNames = [
       `${place} Local Market`,
       `${place} View Point`,
       `${place} Old Town`,
       `${place} Nature Park`,
       `${place} Cultural Center`
     ];
+    
+    const places = await Promise.all(
+      placeNames.map(async (p) => ({
+        name: p,
+        image: await getWikiImage(p)
+      }))
+    );
 
 
     let articles = [];
@@ -80,21 +105,21 @@ router.get("/", async (req, res) => {
       console.log("Article fetch failed:", err.message);
     }
 
-    /* -------------------------
-       5️⃣ Hotels
-    ------------------------- */
+    
 
-    const hotels = [
-      { name: `Zostel ${place}`, price_per_night: "₹900 - ₹1200" },
-      { name: `The Hosteller ${place}`, price_per_night: "₹1000 - ₹1500" },
-      { name: `${place} Backpacker Hostel`, price_per_night: "₹700 - ₹1000" },
-      { name: `${place} Grand Hotel`, price_per_night: "₹3000 - ₹4500" },
-      { name: `${place} Residency`, price_per_night: "₹2000 - ₹3500" }
-    ];
+    const hotels = await Promise.all([
+      { name: `Zostel ${place}`, price: "₹900 - ₹1200" },
+      { name: `The Hosteller ${place}`, price: "₹1000 - ₹1500" },
+      { name: `${place} Backpacker Hostel`, price: "₹700 - ₹1000" },
+      { name: `${place} Grand Hotel`, price: "₹3000 - ₹4500" },
+      { name: `${place} Residency`, price: "₹2000 - ₹3500" }
+    ].map(async (hotel) => ({
+      name: hotel.name,
+      price_per_night: hotel.price,
+      image: await getWikiImage(hotel.name)
+    })));
 
-    /* -------------------------
-       6️⃣ Travel Tips
-    ------------------------- */
+    
 
     const travel_tips = [
       "Check weather before traveling.",
@@ -104,9 +129,7 @@ router.get("/", async (req, res) => {
       "Respect local culture and traditions."
     ];
 
-    /* -------------------------
-       7️⃣ Latest News (RSS)
-    ------------------------- */
+   
 
     let news = [];
 
@@ -133,12 +156,11 @@ router.get("/", async (req, res) => {
       console.log("News fetch failed:", err.message);
     }
 
-    /* -------------------------
-       Final Response
-    ------------------------- */
+    
 
     res.json({
       destination: place,
+      destination_image: destinationImage,
       description: description,
       weather: weatherData,
       top_places: places,

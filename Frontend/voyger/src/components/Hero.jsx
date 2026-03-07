@@ -12,6 +12,7 @@ export default function Hero({ displayText }) {
 const [messages, setMessages] = useState([]);
 const bottomRef = useRef(null);
 const chatRef = useRef(null);
+const user = JSON.parse(localStorage.getItem("user"));
 
 
 useEffect(() => {
@@ -46,7 +47,11 @@ const handleSubmit = async () => {
     const chatRes = await fetch(`${API}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: sid, message: userText }),
+      body: JSON.stringify({
+        sessionId: sid,
+        message: userText,
+        userEmail: user?.email
+      }),
     });
 
     const data = await chatRes.json();
