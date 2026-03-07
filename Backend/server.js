@@ -1,4 +1,3 @@
-
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -10,6 +9,8 @@ import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import session from "express-session";
 import flightRoutes from "./routes/flights.js";
+import searchRoutes from "./routes/search.js";
+import planRoutes from "./routes/plan.js";
 
 const app = express();
 app.use(cors());
@@ -24,8 +25,12 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use("/api/auth", authRoutes);
 app.use("/api/flights", flightRoutes);
+app.use("/api/search", searchRoutes);
+app.use("/api/plan", planRoutes);
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = process.env.GROQ_API_KEY
+  ? new Groq({ apiKey: process.env.GROQ_API_KEY })
+  : null;
 const MODEL = "llama-3.3-70b-versatile"; 
 
 const PROFILES_FILE = "./profiles.json";
@@ -110,6 +115,10 @@ Be helpful, specific, and excited about their trip. Answer questions, suggest id
 
 
 async function chat(systemPrompt, userContent) {
+  if (!groq) {
+    throw new Error("GROQ_API_KEY is missing. Add it to Backend/.env before using AI chat endpoints.");
+  }
+
   const res = await groq.chat.completions.create({
     model: MODEL,
     max_tokens: 1024,
@@ -323,5 +332,3 @@ app.get("/api/profiles", (_req, res) => res.json(loadProfiles()));
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🌍 Voyager running on http://localhost:${PORT}`));
 
-import searchRoutes from "./routes/search.js";
-app.use("/api/search", searchRoutes);
