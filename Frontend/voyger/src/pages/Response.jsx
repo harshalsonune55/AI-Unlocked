@@ -1,6 +1,61 @@
 import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { useSearchParams } from "react-router-dom";
+
+
+
+const fakeTrip = {
+  destination: "Bali",
+  duration: "7 Days",
+  travelStyle: "Beach & Adventure",
+
+  itineraries: [
+    {
+      id: "it1",
+      title: "Beach Paradise",
+      activities: [
+        "Arrival at Ngurah Rai Airport",
+        "Relax at Seminyak Beach",
+        "Sunset dinner by the sea"
+      ]
+    },
+    {
+      id: "it2",
+      title: "Temple & Culture",
+      activities: [
+        "Visit Tanah Lot Temple",
+        "Explore Ubud Monkey Forest",
+        "Balinese traditional dance show"
+      ]
+    },
+    {
+      id: "it3",
+      title: "Adventure Bali",
+      activities: [
+        "Mount Batur sunrise trek",
+        "Waterfall hike",
+        "Snorkeling at Nusa Penida"
+      ]
+    }
+  ],
+
+  recommended_hotels: [
+    "W Bali Seminyak",
+    "Alila Ubud",
+    "Ayana Resort Bali"
+  ],
+
+  tips: [
+    "Carry sunscreen and sunglasses",
+    "Respect temple dress codes",
+    "Use ride apps like Grab or Gojek"
+  ],
+
+  estimated_cost: "$1200 – $1800 per person"
+};
+
+/* ---------------- COMPONENT ---------------- */
 
 export default function Response() {
 
@@ -9,286 +64,209 @@ export default function Response() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get("session");
+
   useEffect(() => {
 
     const fetchData = async () => {
 
       try {
 
-        const res = await fetch(`${API}/api/travel?place=DXB&dep=DEL`);
+        const res = await fetch(`${API}/api/profile/${sessionId}`);
         const json = await res.json();
 
-        setData(json);
+        if (!json || json.error) {
+          setData(fakeTrip);
+        } else {
+          setData(json);
+        }
 
       } catch (err) {
+
         console.error("API error:", err);
+        setData(fakeTrip);
+
       } finally {
+
         setLoading(false);
+
       }
 
     };
 
     fetchData();
 
-  }, []);
+  }, [sessionId]);
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
 
       <Navbar />
 
-      <main className="flex-1 px-6 md:px-16 py-16 space-y-20">
+      <main className="flex-1 px-6 md:px-16 py-12">
 
-        {/* GLOBAL LOADER */}
+        {/* LOADER */}
         {loading && (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-400 mt-4">
-              Loading destination data...
-            </p>
+          <div className="flex justify-center items-center py-24">
+            <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"/>
           </div>
         )}
 
-        {/* CONTENT */}
         {!loading && data && (
           <>
-            {/* HEADER */}
-            <div className="text-center max-w-3xl mx-auto">
 
-              <h1 className="text-5xl font-bold mb-6 capitalize">
-                Explore {data.destination}
-              </h1>
+          {/* HEADER */}
+          <div className="max-w-4xl mb-12">
 
-              <p className="text-gray-400">
-                {data.description}
-              </p>
+            <h1 className="text-5xl font-bold mb-3">
+              Your AI Generated Trip
+            </h1>
+
+            <p className="text-gray-400">
+              {data.destination} • {data.duration} • {data.travelStyle}
+            </p>
+
+          </div>
+
+          {/* ITINERARY OPTIONS */}
+          <div className="space-y-8">
+
+          {data.itineraries?.map((trip,index)=>(
+          
+          <div
+            key={index}
+            className="flex flex-col md:flex-row bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden"
+          >
+
+            {/* IMAGE */}
+            <img
+              src={`https://source.unsplash.com/600x400/?${data.destination}`}
+              className="w-full md:w-[320px] object-cover"
+              alt="destination"
+            />
+
+            {/* CONTENT */}
+            <div className="flex flex-col justify-between p-6 flex-1">
+
+              <div>
+
+                <h2 className="text-2xl font-semibold mb-2">
+                  {trip.title}
+                </h2>
+
+                <p className="text-gray-400 mb-4">
+                  {data.destination} travel plan
+                </p>
+
+                <ul className="text-gray-300 space-y-1 text-sm">
+
+                  {trip.activities?.map((act,i)=>(
+                    <li key={i}>• {act}</li>
+                  ))}
+
+                </ul>
+
+              </div>
+
+              <div className="flex items-center justify-between mt-6">
+
+                <span className="text-xs bg-orange-500/20 text-orange-400 px-3 py-1 rounded-full">
+                  AI Generated
+                </span>
+
+                <button
+                  onClick={() => window.location.href = `/trip?session=${sessionId}&it=${trip.id}`}
+                  className="bg-orange-500 hover:bg-orange-600 px-5 py-2 rounded-lg text-sm font-medium"
+                >
+                  View Details
+                </button>
+
+              </div>
 
             </div>
 
+          </div>
 
-            {/* WEATHER */}
-            <section>
+          ))}
 
-              <h2 className="text-2xl font-semibold mb-4">
-                🌤 Current Weather
-              </h2>
+          </div>
 
-              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 inline-block">
 
-                <p className="text-lg">
-                  {data.weather?.temp_C}°C • {data.weather?.weatherDesc?.[0]?.value}
+          {/* HOTELS */}
+          {data.recommended_hotels && (
+
+          <section className="mt-16">
+
+            <h2 className="text-2xl font-semibold mb-6">
+              🏨 Recommended Hotels
+            </h2>
+
+            <div className="grid md:grid-cols-3 gap-6">
+
+              {data.recommended_hotels.map((hotel,index)=>(
+              
+              <div
+                key={index}
+                className="bg-neutral-900 border border-neutral-800 rounded-xl p-5"
+              >
+
+                <h3 className="font-semibold mb-1">
+                  {hotel}
+                </h3>
+
+                <p className="text-gray-400 text-sm">
+                  Great location for exploring {data.destination}
                 </p>
 
-                <p className="text-gray-400 text-sm mt-2">
-                  Humidity: {data.weather?.humidity}% • Wind: {data.weather?.windspeedKmph} km/h
-                </p>
-
               </div>
 
-            </section>
+              ))}
 
+            </div>
 
-            {/* TOP PLACES */}
-            <section>
+          </section>
+          )}
 
-              <h2 className="text-2xl font-semibold mb-6">
-                📍 Top Places
-              </h2>
 
-              <div className="flex gap-6 overflow-x-auto pb-4">
+          {/* TIPS */}
+          {data.tips && (
 
-                {data.top_places?.map((place, index) => (
+          <section className="mt-16">
 
-                  <div
-                    key={index}
-                    className="min-w-[260px] bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden"
-                  >
+            <h2 className="text-2xl font-semibold mb-6">
+              💡 Travel Tips
+            </h2>
 
-                    <img
-                      src={place.image}
-                      alt={place.name}
-                      className="h-44 w-full object-cover"
-                    />
+            <ul className="space-y-2 text-gray-300">
 
-                    <div className="p-4">
+              {data.tips.map((tip,index)=>(
+                <li key={index}>• {tip}</li>
+              ))}
 
-                      <h3 className="font-semibold">
-                        {place.name}
-                      </h3>
+            </ul>
 
-                    </div>
+          </section>
 
-                  </div>
+          )}
 
-                ))}
+          {/* BUDGET */}
+          {data.estimated_cost && (
 
-              </div>
+          <section className="mt-16">
 
-            </section>
+            <h2 className="text-2xl font-semibold mb-4">
+              💰 Estimated Budget
+            </h2>
 
+            <p className="text-orange-400 text-lg">
+              {data.estimated_cost}
+            </p>
 
-            {/* HOTELS */}
-            <section>
+          </section>
 
-              <h2 className="text-2xl font-semibold mb-6">
-                🏨 Hotels
-              </h2>
+          )}
 
-              <div className="flex gap-6 overflow-x-auto pb-4">
-
-                {data.hotels?.map((hotel, index) => (
-
-                  <div
-                    key={index}
-                    className="min-w-[260px] bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden"
-                  >
-
-                    <img
-                      src={hotel.image}
-                      alt={hotel.name}
-                      className="h-44 w-full object-cover"
-                    />
-
-                    <div className="p-4">
-
-                      <h3 className="font-semibold">
-                        {hotel.name}
-                      </h3>
-
-                      <p className="text-gray-400 text-sm">
-                        {hotel.price_per_night}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-            </section>
-
-
-            {/* FLIGHTS */}
-            <section>
-
-              <h2 className="text-2xl font-semibold mb-6">
-                ✈ Available Flights
-              </h2>
-
-              <div className="grid md:grid-cols-2 gap-6">
-
-                {data.flights?.length === 0 && (
-                  <p className="text-gray-400">
-                    No flights available
-                  </p>
-                )}
-
-                {data.flights?.map((flight, index) => (
-
-                  <div
-                    key={index}
-                    className="bg-neutral-900 border border-neutral-800 rounded-xl p-6"
-                  >
-
-                    <h3 className="text-lg font-semibold mb-2">
-                      {flight.airline}
-                    </h3>
-
-                    <p className="text-gray-400 text-sm">
-                      Flight: {flight.flight_number}
-                    </p>
-
-                    <p className="mt-2">
-                      {flight.departure_airport} → {flight.arrival_airport}
-                    </p>
-
-                    <p className="text-gray-400 text-sm">
-                      Departure: {new Date(flight.departure_time).toLocaleString()}
-                    </p>
-
-                    <p className="text-gray-400 text-sm">
-                      Arrival: {new Date(flight.arrival_time).toLocaleString()}
-                    </p>
-
-                    <span className="inline-block mt-3 text-xs bg-orange-500/20 text-orange-400 px-3 py-1 rounded-full">
-                      {flight.status}
-                    </span>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-            </section>
-
-
-            {/* TRAVEL ARTICLES */}
-            <section>
-
-              <h2 className="text-2xl font-semibold mb-6">
-                📰 Travel Articles
-              </h2>
-
-              <div className="space-y-4">
-
-                {data.travel_articles?.map((article, index) => (
-
-                  <a
-                    key={index}
-                    href={article.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block bg-neutral-900 border border-neutral-800 p-4 rounded-xl hover:border-neutral-700"
-                  >
-
-                    {article.title}
-
-                  </a>
-
-                ))}
-
-              </div>
-
-            </section>
-
-
-            {/* TRAVEL TIPS */}
-            <section>
-
-              <h2 className="text-2xl font-semibold mb-6">
-                💡 Travel Tips
-              </h2>
-
-              <ul className="space-y-2 text-gray-300">
-
-                {data.travel_tips?.map((tip, index) => (
-
-                  <li key={index}>
-                    • {tip}
-                  </li>
-
-                ))}
-
-              </ul>
-
-            </section>
-
-
-            {/* BUDGET */}
-            <section>
-
-              <h2 className="text-2xl font-semibold mb-4">
-                💰 Budget Estimate
-              </h2>
-
-              <p className="text-orange-400 text-lg">
-                {data.budget_estimate}
-              </p>
-
-            </section>
           </>
         )}
 

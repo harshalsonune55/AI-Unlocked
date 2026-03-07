@@ -2,6 +2,7 @@ import { ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { useRef } from "react";
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const API = "https://ai-unlocked-backend.onrender.com";
 
@@ -13,6 +14,7 @@ const [messages, setMessages] = useState([]);
 const bottomRef = useRef(null);
 const chatRef = useRef(null);
 const user = JSON.parse(localStorage.getItem("user"));
+const navigate = useNavigate();
 
 
 useEffect(() => {
@@ -56,16 +58,32 @@ const handleSubmit = async () => {
 
     const data = await chatRes.json();
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        text:
-          typeof data.reply === "object"
-            ? JSON.stringify(data.reply, null, 2)
-            : data.reply,
-      },
-    ]);
+    if (data.itinerary) {
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: "Your itinerary is ready ✈️",
+          itineraryReady: true,
+          sessionId: sid
+        },
+      ]);
+    
+    } else {
+    
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text:
+            typeof data.reply === "object"
+              ? JSON.stringify(data.reply, null, 2)
+              : data.reply,
+        },
+      ]);
+    
+    }
 
   } catch (err) {
     console.error("Chat error:", err);
@@ -127,6 +145,15 @@ const handleSubmit = async () => {
           }`}
         >
           {msg.text}
+
+{msg.itineraryReady && (
+  <button
+    onClick={() => navigate(`/response?session=${msg.sessionId}`)}
+    className="mt-3 bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-lg text-white text-sm"
+  >
+    View Full Itinerary
+  </button>
+)}
         </div>
       </div>
     ))}
