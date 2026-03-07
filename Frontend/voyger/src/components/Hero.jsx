@@ -15,6 +15,8 @@ const bottomRef = useRef(null);
 const chatRef = useRef(null);
 const user = JSON.parse(localStorage.getItem("user"));
 const navigate = useNavigate();
+const [tripProfile, setTripProfile] = useState(null);
+const [tripResult, setTripResult] = useState(null);
 
 
 useEffect(() => {
@@ -52,25 +54,21 @@ const handleSubmit = async () => {
       body: JSON.stringify({
         sessionId: sid,
         message: userText,
-        userEmail: user?.email
+        userEmail: user?.email   
       }),
     });
 
     const data = await chatRes.json();
 
-    if (data.itinerary) {
+    // if backend sends trip profile
+if (data.profile && !tripProfile) {
+  setTripProfile(data.profile);
+}
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: "Your itinerary is ready ✈️",
-          itineraryReady: true,
-          sessionId: sid
-        },
-      ]);
-    
-    } else {
+// if backend returns trip itinerary
+if (data.trip) {
+  setTripResult(data.trip);
+} else {
     
       setMessages((prev) => [
         ...prev,
@@ -90,6 +88,24 @@ const handleSubmit = async () => {
   } finally {
     setLoading(false);
   }
+};
+
+const handleMakeItinerary = () => {
+
+  if (!tripProfile) return;
+
+  navigate("/response", {
+    state: {
+      profile: {
+        starting_city: tripProfile.startingFrom,
+        destination_city: tripProfile.destination,
+        duration: tripProfile.duration,
+        budget: tripProfile.budget,
+        travelStyle: "relaxed"
+      }
+    }
+  });
+
 };
 
   const handleKeyDown = (e) => {
@@ -123,6 +139,38 @@ const handleSubmit = async () => {
 
         <div className="mt-12">
 
+        {tripProfile && !tripResult && (
+  <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-6 mb-6 text-left">
+
+    <h2 className="text-xl font-semibold mb-4">Trip Summary</h2>
+
+    <div className="space-y-2 text-sm text-gray-300">
+
+      <p><strong>From:</strong> {tripProfile.startingFrom}</p>
+      <p><strong>To:</strong> {tripProfile.destination}</p>
+      <p><strong>Duration:</strong> {tripProfile.duration}</p>
+      <p><strong>Budget:</strong> {tripProfile.budget}</p>
+
+    </div>
+
+    <button
+  onClick={handleMakeItinerary}
+  disabled={loading}
+  className="mt-5 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50"
+>
+  {loading ? (
+    <>
+      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+      Generating itinerary...
+    </>
+  ) : (
+    "Make Itinerary"
+  )}
+</button>
+
+  </div>
+)}
+
     {/* CHAT HISTORY */}
 {messages.length > 0 && (
   <div
@@ -146,14 +194,6 @@ const handleSubmit = async () => {
         >
           {msg.text}
 
-{msg.itineraryReady && (
-  <button
-    onClick={() => navigate(`/response?session=${msg.sessionId}`)}
-    className="mt-3 bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-lg text-white text-sm"
-  >
-    View Full Itinerary
-  </button>
-)}
         </div>
       </div>
     ))}
@@ -170,6 +210,19 @@ const handleSubmit = async () => {
   </div>
 )}
   <br />
+
+  {tripResult && (
+  <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-6 text-left max-h-[400px] overflow-y-auto">
+
+    <h2 className="text-xl font-semibold mb-4">Generated Itinerary</h2>
+
+    <pre className="text-sm text-gray-300 whitespace-pre-wrap">
+      {JSON.stringify(tripResult, null, 2)}
+    </pre>
+
+  </div>
+)}
+
 
 
   {/* INPUT BOX */}
@@ -199,6 +252,8 @@ const handleSubmit = async () => {
         <ArrowUp size={18} />
       )}
     </button>
+
+    
 
   </div>
 

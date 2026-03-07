@@ -48,8 +48,8 @@ router.post("/finalize", async (req, res) => {
       getPlaceImages(destination, 6)
     ]);
 
-    const depCode = normalizeIata(dep) || normalizeIata(from) || "";
-    const arrCode = normalizeIata(arr) || normalizeIata(to) || "";
+    const depCode = normalizeIata(dep) || normalizeIata(from) || normalizeIata(profile?.startingFrom) || "";
+    const arrCode = normalizeIata(arr) || normalizeIata(to) || normalizeIata(profile?.destination) || "";
 
     const flights = depCode && arrCode
       ? await getFlights({ dep: depCode, arr: arrCode, airline }).catch(() => [])

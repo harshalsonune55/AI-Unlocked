@@ -2,60 +2,130 @@ import Groq from "groq-sdk";
 
 const MODEL = "llama-3.3-70b-versatile";
 
-const SYSTEM_FINAL_JSON = `You are Voyager Final Composer.
-You receive planner profile, retriever data, flights, and destination images.
-Return ONLY valid JSON with this exact top-level structure and do not include markdown:
+const SYSTEM_WRAP = `
+You are Voyager, an expert AI travel planner.
+
+You will receive a traveler profile. Using that information, generate a FULL travel itinerary.
+
+You MUST follow these rules:
+
+1. Return ONLY valid JSON.
+2. Do NOT include explanations.
+3. Do NOT include markdown.
+4. Do NOT add text before or after the JSON.
+5. All keys in the schema MUST be present.
+6. If a value is unknown, still include the key with an empty value.
+7. Provide at least:
+   - 3 departure flights
+   - 3 return flights
+   - 3 hotel options
+   - 5 tourist places
+8. If flight prices are missing from data, ESTIMATE realistic prices based on route distance.
+9. Hotel must include price_per_night.
+10. Itinerary must include activities for morning, afternoon, and evening for each day.
+
+Return JSON using EXACTLY this structure:
+
 {
-  "trip_meta": {
+  "trip_summary": {
     "trip_title": "",
-    "destination": "",
-    "duration": "",
-    "budget": "",
-    "travel_style": ""
+    "starting_city": "",
+    "destination_city": "",
+    "duration_days": 0,
+    "travel_style": "",
+    "budget_per_person": "",
+    "best_time_to_visit": ""
   },
-  "transport": {
-    "flights": []
+
+  "flight_options": {
+    "departure_flights": [
+      {
+        "airline": "",
+        "flight_number": "",
+        "departure_airport": "",
+        "arrival_airport": "",
+        "departure_time": "",
+        "arrival_time": "",
+        "duration": "",
+        "estimated_price": ""
+      }
+    ],
+
+    "return_flights": [
+      {
+        "airline": "",
+        "flight_number": "",
+        "departure_airport": "",
+        "arrival_airport": "",
+        "departure_time": "",
+        "arrival_time": "",
+        "duration": "",
+        "estimated_price": ""
+      }
+    ]
   },
-  "stay": {
-    "chosen_hotel": {
+
+  "hotel_options": [
+    {
       "name": "",
-      "price_per_night": ""
-    },
-    "check_in": "",
-    "check_out": ""
-  },
-  "destination_media": {
-    "hero_image": {},
-    "gallery": []
-  },
-  "itinerary": [
+      "location": "",
+      "rating": "",
+      "price_per_night": "",
+      "amenities": []
+    }
+  ],
+
+  "itinerary_overview": [
     {
       "day": 1,
       "title": "",
-      "activities": [
-        {
-          "time": "",
-          "from": "",
-          "to": "",
-          "transport": "",
-          "activity": "",
-          "estimated_cost": "",
-          "image": {}
-        }
-      ]
+      "summary": ""
     }
   ],
-  "practical": {
-    "weather": {},
-    "tips": [],
-    "travel_articles": []
+
+  "detailed_itinerary": [
+    {
+      "day": 1,
+      "morning": {
+        "activity": "",
+        "place": "",
+        "description": ""
+      },
+      "afternoon": {
+        "activity": "",
+        "place": "",
+        "description": ""
+      },
+      "evening": {
+        "activity": "",
+        "place": "",
+        "description": ""
+      }
+    }
+  ],
+
+  "tourist_places": [
+    {
+      "name": "",
+      "description": "",
+      "entry_fee": "",
+      "best_time_to_visit": ""
+    }
+  ],
+
+  "estimated_trip_cost": {
+    "flight_cost_estimate": "",
+    "hotel_cost_estimate": "",
+    "food_and_transport": "",
+    "activities": "",
+    "total_estimated_cost": ""
   },
-  "estimated_total_cost": ""
+
+  "travel_tips": []
 }
-Important:
-- Build a concrete end-to-end plan (no suggestion lists, no alternatives).
-- Pick one hotel and create a day-by-day movement plan (from place A to place B).
-- Every day should start from hotel or previous location and include explicit transport mode.`;
+`;
+
+
 
 function safeJsonParse(raw) {
   try {
@@ -77,7 +147,7 @@ function parseTripDays(durationText) {
   return Math.min(parsed, 10);
 }
 
-function buildActivitiesForDay({ day, startPoint, places, gallery }) {
+function buildActivitiesForDay({ day, startPoint, places, gallery, hotel }) {
   const slots = [
     { time: "08:30", transport: "Walk/Auto", cost: "₹100 - ₹250" },
     { time: "11:30", transport: "Auto/Ride", cost: "₹150 - ₹400" },
@@ -89,8 +159,16 @@ function buildActivitiesForDay({ day, startPoint, places, gallery }) {
   let from = startPoint;
 
   for (let i = 0; i < slots.length; i += 1) {
+
     const place = places[(day * slots.length + i) % places.length];
-    const image = gallery[(day * slots.length + i) % Math.max(gallery.length, 1)] || null;
+
+    const imageObj =
+      gallery[(day * slots.length + i) % Math.max(gallery.length, 1)] || null;
+
+    const imageUrl =
+      typeof imageObj === "string"
+        ? imageObj
+        : imageObj?.image_url || imageObj?.thumbnail_url || null;
 
     activities.push({
       time: slots[i].time,
@@ -99,7 +177,16 @@ function buildActivitiesForDay({ day, startPoint, places, gallery }) {
       transport: slots[i].transport,
       activity: `Visit ${place}`,
       estimated_cost: slots[i].cost,
-      image
+
+      /* image attached to itinerary activity */
+      image: imageUrl,
+
+      /* hotel reference for that day */
+      hotel: {
+        name: hotel?.name || "",
+        price_per_night: hotel?.price_per_night || "",
+        location: hotel?.location || ""
+      }
     });
 
     from = place;
@@ -112,7 +199,17 @@ function buildActivitiesForDay({ day, startPoint, places, gallery }) {
     transport: "Auto/Ride",
     activity: "Return to hotel and rest",
     estimated_cost: "₹100 - ₹300",
-    image: gallery[0] || null
+
+    image:
+      typeof gallery?.[0] === "string"
+        ? gallery[0]
+        : gallery?.[0]?.image_url || gallery?.[0]?.thumbnail_url || null,
+
+    hotel: {
+      name: hotel?.name || "",
+      price_per_night: hotel?.price_per_night || "",
+      location: hotel?.location || ""
+    }
   });
 
   return activities;
@@ -142,7 +239,8 @@ function buildFallbackFinalTrip(payload) {
         day: idx,
         startPoint: chosenHotel.name,
         places: topPlaces,
-        gallery
+        gallery,
+        hotel: chosenHotel
       })
     };
   });
@@ -208,14 +306,17 @@ export async function composeFinalTrip(payload) {
 
   const completion = await groq.chat.completions.create({
     model: MODEL,
-    max_tokens: 1700,
+    temperature: 0.2,
+    max_tokens: 2500,
+    response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: SYSTEM_FINAL_JSON },
+      { role: "system", content: SYSTEM_WRAP },
       { role: "user", content: userContent }
     ]
   });
 
   const raw = completion.choices?.[0]?.message?.content || "";
+  console.log(raw);
   const parsed = safeJsonParse(raw);
 
   if (isValidFinalTripShape(parsed)) {

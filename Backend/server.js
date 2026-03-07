@@ -4,17 +4,22 @@ import cors from "cors";
 import Groq from "groq-sdk";
 import fs from "fs";
 import { randomUUID } from "crypto";
+
 import connectDB from "./config/db.js";
 import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import session from "express-session";
 import flightRoutes from "./routes/flights.js";
+import axios from "axios";
+import Stripe from "stripe";
+
 
 
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
 app.use(session({
   secret: "voyager_secret",
   resave: false,
@@ -23,319 +28,420 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
+
 app.use("/api/auth", authRoutes);
 app.use("/api/flights", flightRoutes);
-// app.use("/api/search", searchRoutes);
-// app.use("/api/plan", planRoutes);
 
 const groq = process.env.GROQ_API_KEY
   ? new Groq({ apiKey: process.env.GROQ_API_KEY })
   : null;
-const MODEL = "llama-3.3-70b-versatile"; 
 
-const PROFILES_FILE = "./profiles.json";
-if (!fs.existsSync(PROFILES_FILE)) fs.writeFileSync(PROFILES_FILE, "{}");
+const MODEL = "llama-3.3-70b-versatile";
 
-const loadProfiles = () => JSON.parse(fs.readFileSync(PROFILES_FILE, "utf-8"));
-const saveProfiles = (data) => fs.writeFileSync(PROFILES_FILE, JSON.stringify(data, null, 2));
 connectDB();
 
+/* ---------------- PROFILES STORAGE ---------------- */
+
+const PROFILES_FILE = "./profiles.json";
+
+if (!fs.existsSync(PROFILES_FILE))
+  fs.writeFileSync(PROFILES_FILE, "{}");
+
+const loadProfiles = () =>
+  JSON.parse(fs.readFileSync(PROFILES_FILE, "utf-8"));
+
+const saveProfiles = (data) =>
+  fs.writeFileSync(PROFILES_FILE, JSON.stringify(data, null, 2));
+
+/* ---------------- SESSION STORE ---------------- */
 
 const sessions = new Map();
 
+/* ---------------- STAGES ---------------- */
 
 const STAGES = {
-  IDLE:        "idle",
-  NOT_SERIOUS: "not_serious",
-  PERSONA:     "persona",
-  REFINE:      "refine",
-  DONE:        "done",
+  IDLE: "idle",
+  PERSONA: "persona",
+  REFINE: "refine",
+  DONE: "done"
 };
 
+/* ---------------- QUESTIONS ---------------- */
+
 const PERSONA_QUESTIONS = [
-  "Where are you planning to go? (Destination or region — even a rough idea works!)",
-  "What's your budget per person? (e.g. ₹10,000, $300, or just 'tight' / 'flexible')",
-  "How many days are you thinking for this trip?",
-  "Who's travelling — solo, couple, a group of friends, or family?",
-  "How would you describe your travel style? (Adventure backpacking, cultural exploration, leisure & comfort, luxury, mix…)",
+  "Where are you planning to go? (Destination or region)",
+  "Where will you be starting from? (City or airport code)",
+  "What's your budget per person?",
+  "How many days is the trip?",
+  "Who's travelling?",
+  "What's your travel style?"
 ];
 
 const REFINE_QUESTIONS = [
-  "What are your top 2–3 must-haves on this trip? (e.g. trekking, local street food, photography spots, nightlife, historical sites…)",
-  "Any hard constraints or deal-breakers? (dietary needs, accessibility, specific dates, budget ceiling, avoid crowds…)",
+  "What are your must-have experiences?",
+  "Any constraints or deal-breakers?"
 ];
 
+/* ---------------- LLM PROMPTS ---------------- */
 
-const SYSTEM_DETECT = `You are Voyager, an AI travel planning assistant doing intent detection.
-A user just sent their very first message. Decide if they are SERIOUS about planning a real trip,
-or just casually testing/chatting/sending something off-topic.
+const SYSTEM_DETECT = `
+Decide if the user is serious about travel planning.
 
-Reply ONLY with valid JSON — no prose, no markdown fences:
-{"serious": true, "reason": "one sentence"}
+Return JSON only:
+
+{"serious": true}
 or
-{"serious": false, "reason": "one sentence"}
+{"serious": false}
+`;
 
-Be generous: any travel intent at all → serious: true.
-Mark false ONLY for obvious off-topic / test / greeting-only messages with zero travel intent.`;
+const SYSTEM_BRIDGE = `
+You are Voyager.
 
-const SYSTEM_BRIDGE = `You are Voyager, a warm and sharp AI travel assistant building a traveler profile.
-The user just answered a question. Your job:
-1. One brief natural acknowledgement of their answer (1 sentence, avoid filler like "Great!" or "Awesome!").
-2. Immediately ask the next question given to you.
-Keep it conversational — like a well-travelled friend. Do NOT add tips, suggestions, or extra questions.`;
+Acknowledge the user's answer briefly and ask the next question naturally.
+`;
 
-const SYSTEM_WRAP = `You are Voyager, an expert travel planner.
+const SYSTEM_WRAP = `
+You are Voyager, an expert AI travel planner.
 
-Using the traveler profile, generate a structured travel itinerary.
+Generate a full travel itinerary.
 
-Return ONLY valid JSON with this structure:
+Return ONLY valid JSON.
 
-{
-  "trip_title": "",
-  "destination": "",
-  "duration": "",
-  "budget": "",
-  "travel_style": "",
-  "itinerary": [
-    {
-      "day": 1,
-      "title": "",
-      "activities": []
-    }
-  ],
-  "estimated_cost": "",
-  "recommended_hotels": [],
-  "tips": []
-}
+Include:
+- flights
+- hotels
+- tourist places
+- itinerary
+- cost estimate
+- travel tips
+`;
 
-Do not return text explanations. Return ONLY JSON.`;
+const SYSTEM_ASSISTANT = `
+You are Voyager.
 
-const SYSTEM_ASSISTANT = `You are Voyager, a brilliant AI travel assistant. The user has a saved trip profile (provided in the message).
-Be helpful, specific, and excited about their trip. Answer questions, suggest ideas, and help them plan.`;
+Answer follow-up travel questions using the saved profile.
+`;
 
+/* ---------------- LLM CHAT ---------------- */
 
 async function chat(systemPrompt, userContent) {
-  if (!groq) {
-    throw new Error("GROQ_API_KEY is missing. Add it to Backend/.env before using AI chat endpoints.");
-  }
+
+  if (!groq)
+    throw new Error("Missing GROQ_API_KEY");
 
   const res = await groq.chat.completions.create({
     model: MODEL,
-    max_tokens: 1024,
+    max_tokens: 3000,
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user",   content: userContent  },
-    ],
+      { role: "user", content: userContent }
+    ]
   });
+
   return res.choices[0].message.content || "";
 }
 
+/* ---------------- SESSION HELPERS ---------------- */
 
 function newSession() {
   return {
     id: randomUUID(),
     stage: STAGES.IDLE,
-    personaAnswers: [],  
-    refineAnswers: [],   
+    personaAnswers: [],
+    refineAnswers: [],
     qIndex: 0,
-    profile: null,
-    createdAt: new Date().toISOString(),
+    profile: null
   };
 }
 
 function getProgress(s) {
-  const total    = PERSONA_QUESTIONS.length + REFINE_QUESTIONS.length;
-  const answered = s.personaAnswers.length + s.refineAnswers.length;
+
+  const total =
+    PERSONA_QUESTIONS.length +
+    REFINE_QUESTIONS.length;
+
+  const answered =
+    s.personaAnswers.length +
+    s.refineAnswers.length;
+
   return {
     answered,
     total,
     percent: Math.round((answered / total) * 100),
-    phase: s.stage,
+    phase: s.stage
   };
 }
 
-
-
+/* ---------------- CREATE SESSION ---------------- */
 
 app.post("/api/session", (req, res) => {
+
   const s = newSession();
   sessions.set(s.id, s);
+
   res.json({ sessionId: s.id });
+
 });
 
+// payment
+
+app.post("/api/create-checkout", async (req,res)=>{
+
+  const { amount } = req.body;
+
+  const session = await stripe.checkout.sessions.create({
+
+    payment_method_types:["card"],
+
+    line_items:[{
+      price_data:{
+        currency:"inr",
+        product_data:{
+          name:"Voyager AI Trip"
+        },
+        unit_amount: amount * 100
+      },
+      quantity:1
+    }],
+
+    mode:"payment",
+
+    success_url:"http://localhost:5173/success",
+    cancel_url:"http://localhost:5173/cancel"
+
+  });
+
+  res.json({ url: session.url });
+
+});
+
+/* ---------------- CHAT ENDPOINT ---------------- */
 
 app.post("/api/chat", async (req, res) => {
-  const { sessionId, message, userEmail } = req.body;
 
-  if (!sessionId || !message?.trim())
-    return res.status(400).json({ error: "sessionId and message are required" });
+  const { sessionId, message } = req.body;
+
+  if (!sessionId || !message)
+    return res.status(400).json({
+      error: "sessionId and message required"
+    });
 
   const s = sessions.get(sessionId);
+
   if (!s)
-    return res.status(404).json({ error: "Session not found. Call POST /api/session first." });
+    return res.status(404).json({
+      error: "Session not found"
+    });
 
   const userText = message.trim();
   let reply = "";
 
   try {
 
+    /* ---------- IDLE ---------- */
 
     if (s.stage === STAGES.IDLE) {
+
       const raw = await chat(SYSTEM_DETECT, userText);
+
       let detection;
+
       try {
-        detection = JSON.parse(raw.replace(/```json|```/g, "").trim());
+        detection = JSON.parse(raw);
       } catch {
-        detection = { serious: true }; // safe default
+        detection = { serious: true };
       }
 
       if (detection.serious) {
 
-        // If the user already mentioned destination
         s.stage = STAGES.PERSONA;
-      
+
         s.personaAnswers.push({
           q: PERSONA_QUESTIONS[0],
           a: userText
         });
-      
+
         s.qIndex = 1;
-      
-        reply = `Nice choice! 🌍\n\n${PERSONA_QUESTIONS[1]}`;
+
+        reply = PERSONA_QUESTIONS[1];
+
       } else {
-        reply = "Hey! I'm Voyager — your AI trip planner. Whenever you're ready to plan a real adventure, just tell me where you want to go. ✈️";
-        // stay IDLE so they can retry
+
+        reply =
+          "Hi! Tell me where you'd like to travel.";
+
       }
     }
 
-    // ── PERSONA: 5 profile questions ─────────────────────────
+    /* ---------- PERSONA QUESTIONS ---------- */
+
     else if (s.stage === STAGES.PERSONA) {
-      s.personaAnswers.push({ q: PERSONA_QUESTIONS[s.qIndex], a: userText });
+
+      s.personaAnswers.push({
+        q: PERSONA_QUESTIONS[s.qIndex],
+        a: userText
+      });
+
       s.qIndex++;
 
       if (s.qIndex < PERSONA_QUESTIONS.length) {
-        const nextQ = PERSONA_QUESTIONS[s.qIndex];
+
         reply = await chat(
           SYSTEM_BRIDGE,
-          `User answered: "${userText}"\nNow ask them exactly this question (naturally): "${nextQ}"`
+          `User said: ${userText}. Ask: ${PERSONA_QUESTIONS[s.qIndex]}`
         );
+
       } else {
-        s.stage  = STAGES.REFINE;
+
+        s.stage = STAGES.REFINE;
         s.qIndex = 0;
-        reply = await chat(
-          SYSTEM_BRIDGE,
-          `User answered: "${userText}"\nTransition to refining the trip and ask: "${REFINE_QUESTIONS[0]}"`
-        );
+
+        reply = REFINE_QUESTIONS[0];
       }
     }
 
-    // ── REFINE: 2 refinement questions ───────────────────────
+    /* ---------- REFINE QUESTIONS ---------- */
+
     else if (s.stage === STAGES.REFINE) {
-      s.refineAnswers.push({ q: REFINE_QUESTIONS[s.qIndex], a: userText });
+
+      s.refineAnswers.push({
+        q: REFINE_QUESTIONS[s.qIndex],
+        a: userText
+      });
+
       s.qIndex++;
 
       if (s.qIndex < REFINE_QUESTIONS.length) {
-        reply = await chat(
-          SYSTEM_BRIDGE,
-          `User answered: "${userText}"\nNow ask them: "${REFINE_QUESTIONS[s.qIndex]}"`
-        );
+
+        reply = REFINE_QUESTIONS[s.qIndex];
+
       } else {
-        // ── Build & save profile ──────────────────────────────
-        const allQA = [...s.personaAnswers, ...s.refineAnswers];
-        const profileContext = allQA.map((x) => `Q: ${x.q}\nA: ${x.a}`).join("\n\n");
 
-        const raw = await chat(SYSTEM_WRAP, `Full traveler profile:\n\n${profileContext}`);
+  /* ---------- CALL TRIP API ---------- */
 
-let itinerary;
+const destination = s.personaAnswers[0]?.a;
+const start = s.personaAnswers[1]?.a;
 
-try {
-  itinerary = JSON.parse(raw.replace(/```json|```/g, "").trim());
-} catch {
-  itinerary = { error: "Could not parse itinerary", raw };
-}
+const tripResponse = await axios.post(
+  "http://localhost:3000/api/trip",
+  {
+    profile: {
+      starting_city: start,
+      destination_city: destination,
+      duration: s.personaAnswers[3]?.a,
+      budget: s.personaAnswers[2]?.a,
+      travelStyle: s.personaAnswers[5]?.a
+    }
+  }
+);
+
+/* RAW API RESPONSE */
+
+const itinerary = tripResponse.data;
+
+/* RETURN RAW DATA */
 
 reply = itinerary;
 
-s.profile = {
-  sessionId: s.id,
-  userEmail: userEmail,
-  savedAt: new Date().toISOString(),
+        /* ---------- SAVE PROFILE ---------- */
 
-  destination: itinerary.destination,
-  duration: itinerary.duration,
-  budget: itinerary.budget,
-  travelStyle: itinerary.travel_style,
-
-  itinerary: itinerary.itinerary,
-  estimated_cost: itinerary.estimated_cost,
-  recommended_hotels: itinerary.recommended_hotels,
-  tips: itinerary.tips,
-
-  raw: allQA
-};
+        s.profile = {
+          sessionId: s.id,
+          destination,
+          startingFrom: start,
+          budget: s.personaAnswers[2]?.a,
+          duration: s.personaAnswers[3]?.a
+        };
 
         const profiles = loadProfiles();
         profiles[s.id] = s.profile;
         saveProfiles(profiles);
 
         s.stage = STAGES.DONE;
+
       }
     }
 
-    // ── DONE: free chat with saved profile context ────────────
+    /* ---------- POST-TRIP CHAT ---------- */
+
     else if (s.stage === STAGES.DONE) {
-      const profileSummary = s.profile.raw.map((x) => `${x.q}: ${x.a}`).join(" | ");
+
+      const summary =
+        JSON.stringify(s.profile);
+
       reply = await chat(
         SYSTEM_ASSISTANT,
-        `User profile: ${profileSummary}\n\nUser says: "${userText}"`
+        `User profile: ${summary}. Question: ${userText}`
       );
+
     }
 
     sessions.set(s.id, s);
+
     return res.json({
-      reply,
+
+      message:
+        typeof reply === "string"
+          ? reply
+          : "Trip itinerary ready",
+
       stage: s.stage,
+
       progress: getProgress(s),
-      profile: s.stage === STAGES.DONE ? s.profile : null,
-      itinerary: typeof reply === "object" ? reply : null
+
+      session: {
+        id: s.id,
+        phase: s.stage
+      },
+
+      profile:
+        s.stage === STAGES.DONE
+          ? s.profile
+          : null,
+
+      trip:
+        typeof reply === "object"
+          ? reply
+          : null
+
     });
 
   } catch (err) {
-    console.error("Agent error:", err.message);
-    return res.status(500).json({ error: "Agent error", detail: err.message });
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Agent error",
+      detail: err.message
+    });
+
   }
 });
 
-// GET /api/profile/:sessionId  →  fetch a saved profile
+/* ---------------- PROFILE ROUTES ---------------- */
+
 app.get("/api/profile/:sessionId", (req, res) => {
+
   const profiles = loadProfiles();
-  const profile  = profiles[req.params.sessionId];
-  if (!profile) return res.status(404).json({ error: "Profile not found" });
+  const profile = profiles[req.params.sessionId];
+
+  if (!profile)
+    return res.status(404).json({
+      error: "Profile not found"
+    });
+
   res.json(profile);
+
 });
 
-// GET recent trips
-app.get("/api/recent-trips", (req, res) => {
-  const { email } = req.query;
-  const profiles = loadProfiles();
+app.get("/api/profiles", (_req, res) =>
+  res.json(loadProfiles())
+);
 
-  const trips = Object.values(profiles)
-  .filter(p => p.userEmail === email)
-    .sort((a,b)=> new Date(b.savedAt) - new Date(a.savedAt))
-    .slice(0,5) // latest 5 trips
-    .map(p => ({
-      sessionId: p.sessionId,
-      destination: p.destination,
-      duration: p.duration
-    }));
+/* ---------------- START SERVER ---------------- */
 
-  res.json(trips);
-});
-
-// GET /api/profiles  →  all profiles (debug)
-app.get("/api/profiles", (_req, res) => res.json(loadProfiles()));
-
-// ── Start ─────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`🌍 Voyager running on http://localhost:${PORT}`));
 
+app.listen(PORT, () =>
+  console.log(`🌍 Voyager running on http://localhost:${PORT}`)
+);

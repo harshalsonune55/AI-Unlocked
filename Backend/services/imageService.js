@@ -1,40 +1,36 @@
-import axios from "axios";
+import { createClient } from "pexels";
 
-const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
 
-function normalizeImage(item, fallbackQuery) {
-  return {
-    title: item?.title || fallbackQuery,
-    image_url: item?.imageinfo?.[0]?.url || null,
-    thumbnail_url: item?.imageinfo?.[0]?.thumburl || null,
-    source: "wikimedia",
-    attribution: item?.imageinfo?.[0]?.extmetadata?.Artist?.value || "Wikimedia Commons"
-  };
-}
+const client = createClient("kU9YmYHLVeQfW3PYVdtwOPGe6C5oCkRl4kcjHzWT5gnzEtiokbbzvB0L");
 
-export async function getPlaceImages(query, limit = 5) {
-  if (!query?.trim()) return [];
+export async function getImages(query, limit = 5) {
 
-  const params = {
-    action: "query",
-    format: "json",
-    prop: "imageinfo",
-    generator: "search",
-    gsrsearch: `${query} travel landscape`,
-    gsrlimit: limit,
-    iiprop: "url|extmetadata",
-    iiurlwidth: 1200,
-    origin: "*"
-  };
+  if (!query) return [];
 
   try {
-    const res = await axios.get(WIKIPEDIA_API, { params });
-    const pages = Object.values(res.data?.query?.pages || {});
-    return pages
-      .filter((p) => p?.imageinfo?.[0]?.url)
-      .map((p) => normalizeImage(p, query))
-      .slice(0, limit);
-  } catch {
+
+    const res = await client.photos.search({
+      query,
+      per_page: limit
+    });
+
+    const photos = res.photos || [];
+
+    return photos.map((p) => ({
+      id: p.id,
+      title: p.alt || query,
+      image_url: p.src.large,
+      thumbnail_url: p.src.medium,
+      photographer: p.photographer,
+      photographer_url: p.photographer_url,
+      source: "pexels"
+    }));
+
+  } catch (err) {
+
+    console.error("Pexels API error:", err.message);
     return [];
+
   }
+
 }
