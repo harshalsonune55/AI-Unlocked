@@ -14,7 +14,7 @@ import axios from "axios";
 import Stripe from "stripe";
 
 
-
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 app.use(cors());
@@ -40,7 +40,7 @@ const MODEL = "llama-3.3-70b-versatile";
 
 connectDB();
 
-/* ---------------- PROFILES STORAGE ---------------- */
+
 
 const PROFILES_FILE = "./profiles.json";
 
@@ -53,11 +53,9 @@ const loadProfiles = () =>
 const saveProfiles = (data) =>
   fs.writeFileSync(PROFILES_FILE, JSON.stringify(data, null, 2));
 
-/* ---------------- SESSION STORE ---------------- */
+
 
 const sessions = new Map();
-
-/* ---------------- STAGES ---------------- */
 
 const STAGES = {
   IDLE: "idle",
@@ -66,7 +64,7 @@ const STAGES = {
   DONE: "done"
 };
 
-/* ---------------- QUESTIONS ---------------- */
+
 
 const PERSONA_QUESTIONS = [
   "Where are you planning to go? (Destination or region)",
@@ -82,7 +80,7 @@ const REFINE_QUESTIONS = [
   "Any constraints or deal-breakers?"
 ];
 
-/* ---------------- LLM PROMPTS ---------------- */
+
 
 const SYSTEM_DETECT = `
 Decide if the user is serious about travel planning.
@@ -122,7 +120,7 @@ You are Voyager.
 Answer follow-up travel questions using the saved profile.
 `;
 
-/* ---------------- LLM CHAT ---------------- */
+
 
 async function chat(systemPrompt, userContent) {
 
@@ -141,7 +139,7 @@ async function chat(systemPrompt, userContent) {
   return res.choices[0].message.content || "";
 }
 
-/* ---------------- SESSION HELPERS ---------------- */
+
 
 function newSession() {
   return {
@@ -172,7 +170,7 @@ function getProgress(s) {
   };
 }
 
-/* ---------------- CREATE SESSION ---------------- */
+
 
 app.post("/api/session", (req, res) => {
 
@@ -183,31 +181,34 @@ app.post("/api/session", (req, res) => {
 
 });
 
-// payment
 
-app.post("/api/create-checkout", async (req,res)=>{
 
-  const { amount } = req.body;
+app.post("/api/create-checkout", async (req, res) => {
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
   const session = await stripe.checkout.sessions.create({
 
-    payment_method_types:["card"],
+    payment_method_types: ["card"],
 
-    line_items:[{
-      price_data:{
-        currency:"inr",
-        product_data:{
-          name:"Voyager AI Trip"
+    line_items: [
+      {
+        price_data: {
+          currency: "inr",
+          product_data: {
+            name: "Trip Booking"
+          },
+          unit_amount: req.body.amount * 100
         },
-        unit_amount: amount * 100
-      },
-      quantity:1
-    }],
+        quantity: 1
+      }
+    ],
 
-    mode:"payment",
+    mode: "payment",
 
-    success_url:"http://localhost:5173/success",
-    cancel_url:"http://localhost:5173/cancel"
+    success_url: "http://localhost:5173/success",
+
+    cancel_url: "http://localhost:5173/cancel"
 
   });
 
@@ -215,7 +216,7 @@ app.post("/api/create-checkout", async (req,res)=>{
 
 });
 
-/* ---------------- CHAT ENDPOINT ---------------- */
+
 
 app.post("/api/chat", async (req, res) => {
 
@@ -237,9 +238,6 @@ app.post("/api/chat", async (req, res) => {
   let reply = "";
 
   try {
-
-    /* ---------- IDLE ---------- */
-
     if (s.stage === STAGES.IDLE) {
 
       const raw = await chat(SYSTEM_DETECT, userText);
@@ -273,8 +271,6 @@ app.post("/api/chat", async (req, res) => {
       }
     }
 
-    /* ---------- PERSONA QUESTIONS ---------- */
-
     else if (s.stage === STAGES.PERSONA) {
 
       s.personaAnswers.push({
@@ -300,7 +296,6 @@ app.post("/api/chat", async (req, res) => {
       }
     }
 
-    /* ---------- REFINE QUESTIONS ---------- */
 
     else if (s.stage === STAGES.REFINE) {
 
@@ -317,31 +312,31 @@ app.post("/api/chat", async (req, res) => {
 
       } else {
 
-  /* ---------- CALL TRIP API ---------- */
 
-const destination = s.personaAnswers[0]?.a;
-const start = s.personaAnswers[1]?.a;
 
-const tripResponse = await axios.post(
-  "http://localhost:3000/api/trip",
-  {
-    profile: {
-      starting_city: start,
-      destination_city: destination,
-      duration: s.personaAnswers[3]?.a,
-      budget: s.personaAnswers[2]?.a,
-      travelStyle: s.personaAnswers[5]?.a
-    }
-  }
-);
+        const destination = s.personaAnswers[0]?.a;
+        const start = s.personaAnswers[1]?.a;
 
-/* RAW API RESPONSE */
+        const tripResponse = await axios.post(
+          "http://localhost:3000/api/trip",
+          {
+            profile: {
+              starting_city: start,
+              destination_city: destination,
+              duration: s.personaAnswers[3]?.a,
+              budget: s.personaAnswers[2]?.a,
+              travelStyle: s.personaAnswers[5]?.a
+            }
+          }
+        );
 
-const itinerary = tripResponse.data;
+        /* RAW API RESPONSE */
 
-/* RETURN RAW DATA */
+        const itinerary = tripResponse.data;
 
-reply = itinerary;
+        /* RETURN RAW DATA */
+
+        reply = itinerary;
 
         /* ---------- SAVE PROFILE ---------- */
 

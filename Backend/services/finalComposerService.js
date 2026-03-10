@@ -319,8 +319,102 @@ export async function composeFinalTrip(payload) {
   console.log(raw);
   const parsed = safeJsonParse(raw);
 
-  if (isValidFinalTripShape(parsed)) {
-    return parsed;
+  if (parsed) {
+
+    const departureFlights = parsed.flight_options?.departure_flights || [];
+    const returnFlights = parsed.flight_options?.return_flights || [];
+  
+    const chosenHotel = parsed.hotel_options?.[0] || {};
+  
+    return {
+      trip_meta: {
+        trip_title: parsed.trip_summary?.trip_title || "",
+        destination: parsed.trip_summary?.destination_city || "",
+        duration: `${parsed.trip_summary?.duration_days || 3} days`,
+        budget: parsed.trip_summary?.budget_per_person || "",
+        travel_style: parsed.trip_summary?.travel_style || ""
+      },
+  
+      transport: {
+        departure_flights: departureFlights.map(f => ({
+          airline: f.airline,
+          flight_number: f.flight_number,
+          departure_airport: f.departure_airport,
+          arrival_airport: f.arrival_airport,
+          departure_time: f.departure_time,
+          arrival_time: f.arrival_time,
+          duration: f.duration,
+          estimated_price: Number(f.estimated_price || 0)
+        })),
+  
+        return_flights: returnFlights.map(f => ({
+          airline: f.airline,
+          flight_number: f.flight_number,
+          departure_airport: f.departure_airport,
+          arrival_airport: f.arrival_airport,
+          departure_time: f.departure_time,
+          arrival_time: f.arrival_time,
+          duration: f.duration,
+          estimated_price: Number(f.estimated_price || 0)
+        }))
+      },
+  
+      stay: {
+        chosen_hotel: {
+          name: chosenHotel.name || "",
+          price_per_night: chosenHotel.price_per_night || "",
+          location: chosenHotel.location || ""
+        },
+        check_in: "Day 1",
+        check_out: `Day ${parsed.trip_summary?.duration_days || 3}`
+      },
+  
+      destination_media: {
+        hero_image: payload.images?.[0] || {},
+        gallery: payload.images || []
+      },
+  
+      itinerary: parsed.detailed_itinerary?.map(day => ({
+        day: day.day,
+        title: `Day ${day.day} Activities`,
+        activities: [
+          {
+            time: "Morning",
+            activity: day.morning.activity,
+            transport: "Local transport",
+            estimated_cost: "₹200 - ₹500",
+            image: payload.images?.[0]?.image_url
+          },
+          {
+            time: "Afternoon",
+            activity: day.afternoon.activity,
+            transport: "Local transport",
+            estimated_cost: "₹200 - ₹500",
+            image: payload.images?.[1]?.image_url
+          },
+          {
+            time: "Evening",
+            activity: day.evening.activity,
+            transport: "Local transport",
+            estimated_cost: "₹200 - ₹500",
+            image: payload.images?.[2]?.image_url
+          }
+        ]
+      })) || [],
+  
+      practical: {
+        weather: payload.search?.weather || {},
+        tips: parsed.travel_tips || []
+      },
+  
+      estimated_trip_cost: {
+        flight_cost_estimate: parsed.estimated_trip_cost?.flight_cost_estimate || "",
+        hotel_cost_estimate: parsed.estimated_trip_cost?.hotel_cost_estimate || "",
+        food_and_transport: parsed.estimated_trip_cost?.food_and_transport || "",
+        activities: parsed.estimated_trip_cost?.activities || "",
+        total_estimated_cost: Number(parsed.estimated_trip_cost?.total_estimated_cost || 0)
+      }
+    };
   }
 
   return buildFallbackFinalTrip(payload);

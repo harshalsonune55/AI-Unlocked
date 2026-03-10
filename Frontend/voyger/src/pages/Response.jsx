@@ -19,12 +19,14 @@ export default function Response() {
 
   useEffect(() => {
 
+    // 🔴 API CALL DISABLED
+    
     const fetchTrip = async () => {
-
+  
       if (!profile) return;
-
+  
       try {
-
+  
         const res = await fetch("http://localhost:3000/api/trip", {
           method: "POST",
           headers: {
@@ -34,27 +36,26 @@ export default function Response() {
             profile
           })
         });
-
+  
         const json = await res.json();
-
+        console.log("API RESPONSE:", json);
         setData(json);
-
+  
       } catch (err) {
-
+  
         console.error(err);
-
+  
       } finally {
-
+  
         setLoading(false);
-
+  
       }
-
+  
     };
-
+  
     fetchTrip();
-
+  
   }, [profile]);
-
   if (loading) {
     return (
       <div className="bg-black text-white min-h-screen flex flex-col items-center justify-center">
@@ -74,43 +75,39 @@ export default function Response() {
   }
   if (!data) return <div className="p-10 text-white">Trip not found</div>;
 
-  const calculateTotalCost = () => {
+  
 
-    if (!data) return 0;
-  
-    let total = 0;
-  
-    data?.itinerary?.forEach(day => {
-      day.activities?.forEach(act => {
-  
-        const cost = act.estimated_cost?.replace(/[^0-9]/g,"");
-        if(cost) total += parseInt(cost);
-  
-      });
-    });
-  
-    return total;
-  };
-  
-  const totalCost = calculateTotalCost();
+  const totalCost = Number(data?.estimated_trip_cost?.total_estimated_cost || 0);
 
   const handlePayment = async () => {
 
-    const res = await fetch("http://localhost:3000/api/create-checkout",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify({
-        amount: totalCost
-      })
-    });
+    try {
   
-    const data = await res.json();
+      const res = await fetch("http://localhost:3000/api/create-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          amount: totalCost
+        })
+      });
   
-    window.location = data.url;
+      const session = await res.json();
+  
+      if (session.url) {
+        window.location.href = session.url;
+      } else {
+        alert("Stripe session not created");
+      }
+  
+    } catch (err) {
+      console.error(err);
+      alert("Payment error");
+    }
   
   };
+ 
 
   return (
 
@@ -150,7 +147,7 @@ export default function Response() {
             ✈️ Available Flights
           </h2>
 
-          {!data?.transport?.flights?.length && (
+          {!data?.transport?.departure_flights?.length&& (
             <div className="text-gray-400">
               No flights available
             </div>
@@ -158,7 +155,7 @@ export default function Response() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-            {data?.transport?.flights?.map((flight, i) => {
+          {data?.transport?.departure_flights?.map((flight, i) => {
 
               const departure = new Date(flight.departure_time);
               const arrival = new Date(flight.arrival_time);
@@ -228,7 +225,7 @@ export default function Response() {
                     </span>
 
                     <span className="text-orange-400 font-semibold text-lg">
-                      {flight.estimated_price}
+                    ₹{flight.estimated_price}
                     </span>
 
                   </div>
@@ -242,6 +239,48 @@ export default function Response() {
           </div>
 
         </section>
+        <section>
+
+<h2 className="text-2xl font-semibold mb-6">
+✈️ Return Flights
+</h2>
+
+<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+{data?.transport?.return_flights?.map((flight, i) => (
+
+<div
+key={i}
+className="bg-neutral-900 rounded-xl p-6 border border-neutral-800 hover:border-orange-500 transition"
+>
+
+<h3 className="text-lg font-semibold">
+{flight.airline}
+</h3>
+
+<p className="text-gray-400">
+Flight: {flight.flight_number}
+</p>
+
+<p className="text-gray-400">
+{flight.departure_airport} → {flight.arrival_airport}
+</p>
+
+<p className="text-gray-400">
+{flight.departure_time} → {flight.arrival_time}
+</p>
+
+<p className="text-orange-400 font-semibold mt-2">
+₹{flight.estimated_price}
+</p>
+
+</div>
+
+))}
+
+</div>
+
+</section>
 
 
 
@@ -441,7 +480,7 @@ Estimated Trip Cost
 </p>
 
 <p className="text-3xl font-bold text-orange-400">
-₹{totalCost}
+₹{(data?.estimated_trip_cost?.total_estimated_cost || 0).toLocaleString()}
 </p>
 
 </div>
@@ -466,3 +505,9 @@ Pay with Card
   );
 
 }
+
+
+
+///
+
+

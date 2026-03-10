@@ -1,7 +1,9 @@
 import express from "express";
 import dotenv from "dotenv";
-dotenv.config();
+
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 
 import { retrieveDestinationData } from "./services/retrieverService.js";
@@ -12,11 +14,15 @@ import { getHotels } from "./services/hotelService.js";
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 
 app.use(cors({ origin: "*" }));
 app.use(express.json());
-
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 /*
 POST BODY EXAMPLE
 
@@ -33,6 +39,7 @@ POST BODY EXAMPLE
 
 app.post("/api/trip", async (req, res) => {
   try {
+
     const { profile } = req.body;
 
     const start = profile.starting_city;
@@ -45,35 +52,37 @@ app.post("/api/trip", async (req, res) => {
     }
 
     const [flights, search, images, hotels] = await Promise.all([
-        getFlights({ dep: start, arr: destination }),
-        retrieveDestinationData(destination),
-        getImages(destination),
-        getHotels(destination)
-      ]);
+      getFlights({ dep: start, arr: destination }),
+      retrieveDestinationData(destination),
+      getImages(destination),
+      getHotels(destination)
+    ]);
 
-    /* 4️⃣ BUILD PAYLOAD FOR LLM */
     const payload = {
-        profile,
-        destination,
-        flights,
-        hotels,
-        search,
-        images
-      };
+      profile,
+      destination,
+      flights,
+      hotels,
+      search,
+      images
+    };
 
-    /* 5️⃣ GENERATE FINAL TRIP */
     const finalTrip = await composeFinalTrip(payload);
 
+    // ✅ send JSON to React
     res.json(finalTrip);
 
   } catch (err) {
+
     console.error(err);
 
     res.status(500).json({
       error: "Trip generation failed"
     });
+
   }
 });
+
 
 const PORT = process.env.PORT || 3000;
 

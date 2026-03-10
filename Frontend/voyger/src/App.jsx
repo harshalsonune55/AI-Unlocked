@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Response from "./pages/Response";
 import TripDetails from "./pages/TripDetails";
+import ResponseStatic from "./pages/ResponseStatic";
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/response" element={<Response />} />
       <Route path="/trip" element={<TripDetails/>}/>
+      <Route path="/trip-demo" element={<ResponseStatic/>}/>
     </Routes>
   );
 }

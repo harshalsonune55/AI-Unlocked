@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+
 const API = "https://ai-unlocked-backend.onrender.com";
 
 export default function Hero({ displayText }) {
@@ -13,8 +14,8 @@ export default function Hero({ displayText }) {
 const [messages, setMessages] = useState([]);
 const bottomRef = useRef(null);
 const chatRef = useRef(null);
-const user = JSON.parse(localStorage.getItem("user"));
 const navigate = useNavigate();
+const user = JSON.parse(localStorage.getItem("user"));
 const [tripProfile, setTripProfile] = useState(null);
 const [tripResult, setTripResult] = useState(null);
 

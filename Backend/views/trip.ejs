@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <title>
+        <%= data?.trip_meta?.trip_title %>
+    </title>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+</head>
+
+<body class="bg-black text-white min-h-screen">
+
+    <!-- HERO -->
+
+    <div class="relative h-[450px] w-full">
+
+        <img src="<%= data?.destination_media?.hero_image?.image_url || '/travel-placeholder.jpg' %>"
+            class="w-full h-full object-cover" />
+
+        <div class="absolute bottom-10 left-10">
+
+            <h1 class="text-5xl font-bold">
+                <%= data?.trip_meta?.trip_title %>
+            </h1>
+
+            <p class="text-lg text-gray-300">
+                <%= data?.trip_meta?.duration %> • <%= data?.trip_meta?.travel_style %>
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="max-w-7xl mx-auto px-6 py-10 space-y-12">
+
+        <!-- DEPARTURE FLIGHTS -->
+
+        <section>
+
+            <h2 class="text-2xl font-semibold mb-6">
+                ✈️ Available Flights
+            </h2>
+
+            <% if (!data?.transport?.departure_flights?.length) { %>
+
+                <div class="text-gray-400">
+                    No flights available
+                </div>
+
+                <% } %>
+
+                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                        <% data?.transport?.departure_flights?.forEach(function(flight){ %>
+
+                            <div
+                                class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 hover:border-orange-500 transition">
+
+                                <div class="flex justify-between items-center mb-3">
+
+                                    <h3 class="text-lg font-semibold">
+                                        <%= flight.airline %>
+                                    </h3>
+
+                                    <span class="text-sm text-gray-400">
+                                        <%= flight.flight_number %>
+                                    </span>
+
+                                </div>
+
+                                <div class="flex justify-between items-center">
+
+                                    <div>
+
+                                        <p class="text-xs text-gray-400">Departure</p>
+
+                                        <p class="text-lg font-semibold">
+                                            <%= flight.departure_airport %>
+                                        </p>
+
+                                        <p class="text-sm text-gray-400">
+                                            <%= flight.departure_time %>
+                                        </p>
+
+                                    </div>
+
+                                    <div class="text-gray-500">→</div>
+
+                                    <div class="text-right">
+
+                                        <p class="text-xs text-gray-400">Arrival</p>
+
+                                        <p class="text-lg font-semibold">
+                                            <%= flight.arrival_airport %>
+                                        </p>
+
+                                        <p class="text-sm text-gray-400">
+                                            <%= flight.arrival_time %>
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                                <div class="flex justify-between items-center mt-4">
+
+                                    <span class="text-green-400 text-sm capitalize">
+                                        <%= flight.status %>
+                                    </span>
+
+                                    <span class="text-orange-400 font-semibold text-lg">
+                                        ₹<%= flight.estimated_price %>
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                            <% }) %>
+
+                    </div>
+
+        </section>
+
+        <!-- RETURN FLIGHTS -->
+
+        <section>
+
+            <h2 class="text-2xl font-semibold mb-6">
+                ✈️ Return Flights
+            </h2>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <% data?.transport?.return_flights?.forEach(function(flight){ %>
+
+                    <div
+                        class="bg-neutral-900 rounded-xl p-6 border border-neutral-800 hover:border-orange-500 transition">
+
+                        <h3 class="text-lg font-semibold">
+                            <%= flight.airline %>
+                        </h3>
+
+                        <p class="text-gray-400">
+                            Flight: <%= flight.flight_number %>
+                        </p>
+
+                        <p class="text-gray-400">
+                            <%= flight.departure_airport %> → <%= flight.arrival_airport %>
+                        </p>
+
+                        <p class="text-gray-400">
+                            <%= flight.departure_time %> → <%= flight.arrival_time %>
+                        </p>
+
+                        <p class="text-orange-400 font-semibold mt-2">
+                            ₹<%= flight.estimated_price %>
+                        </p>
+
+                    </div>
+
+                    <% }) %>
+
+            </div>
+
+        </section>
+
+        <!-- HOTEL -->
+
+        <section>
+
+            <h2 class="text-2xl font-semibold mb-6">
+                Stay
+            </h2>
+
+            <div class="bg-neutral-900 p-6 rounded-xl">
+
+                <h3 class="text-xl font-semibold">
+                    <%= data?.stay?.chosen_hotel?.name %>
+                </h3>
+
+                <p class="text-gray-400 mt-1">
+                    <%= data?.stay?.chosen_hotel?.price_per_night %>
+                </p>
+
+                <p class="text-gray-400 mt-2">
+                    Check in: <%= data?.stay?.check_in %>
+                </p>
+
+                <p class="text-gray-400">
+                    Check out: <%= data?.stay?.check_out %>
+                </p>
+
+            </div>
+
+        </section>
+
+        <!-- ITINERARY -->
+
+        <section>
+
+            <h2 class="text-2xl font-semibold mb-6">
+                Itinerary
+            </h2>
+
+            <div class="space-y-8">
+
+                <% data?.itinerary?.forEach(function(day){ %>
+
+                    <div>
+
+                        <h3 class="text-xl font-semibold mb-4">
+                            Day <%= day.day %> — <%= day.title %>
+                        </h3>
+
+                        <div class="grid md:grid-cols-3 gap-6">
+
+                            <% day?.activities?.forEach(function(act){ %>
+
+                                <div class="bg-neutral-900 rounded-xl overflow-hidden">
+
+                                    <img src="<%= act.image %>" class="h-[160px] w-full object-cover" />
+
+                                    <div class="p-4">
+
+                                        <p class="text-sm text-gray-400">
+                                            <%= act.time %>
+                                        </p>
+
+                                        <h4 class="font-semibold">
+                                            <%= act.activity %>
+                                        </h4>
+
+                                        <p class="text-sm text-gray-400">
+                                            <%= act.transport %>
+                                        </p>
+
+                                        <p class="text-orange-400 mt-2">
+                                            <%= act.estimated_cost %>
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                                <% }) %>
+
+                        </div>
+
+                    </div>
+
+                    <% }) %>
+
+            </div>
+
+        </section>
+
+        <!-- TIPS -->
+
+        <section>
+
+            <h2 class="text-2xl font-semibold mb-6">
+                Travel Tips
+            </h2>
+
+            <ul class="space-y-2">
+
+                <% data?.practical?.tips?.forEach(function(tip){ %>
+
+                    <li class="bg-neutral-900 p-4 rounded-lg">
+                        <%= tip %>
+                    </li>
+
+                    <% }) %>
+
+            </ul>
+
+        </section>
+
+        <!-- PAYMENT -->
+
+        <section>
+
+            <h2 class="text-2xl font-semibold mb-6">
+                💳 Trip Payment
+            </h2>
+
+            <div class="bg-neutral-900 p-6 rounded-xl flex items-center justify-between">
+
+                <div>
+
+                    <p class="text-gray-400">
+                        Estimated Trip Cost
+                    </p>
+
+                    <p class="text-3xl font-bold text-orange-400">
+                        ₹<%= Number(data?.estimated_trip_cost?.total_estimated_cost || 0).toLocaleString() %>
+                    </p>
+
+                </div>
+
+                <form action="/create-checkout" method="POST">
+
+                    <input type="hidden" name="amount" value="<%= data?.estimated_trip_cost?.total_estimated_cost %>" />
+
+                    <button class="bg-orange-500 hover:bg-orange-600 px-6 py-3 rounded-lg font-semibold">
+                        Pay with Card
+                    </button>
+
+                </form>
+
+            </div>
+
+        </section>
+
+    </div>
+
+</body>
+
+</html>

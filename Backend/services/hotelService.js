@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const HOTEL_API = "YOUR_HOTEL_API_ENDPOINT"; // replace with your API URL
+const SERP_API_KEY = "a74b50434c39573af9b1cf2fc6387dc71d33d9125b500edf91605fb412a6081b";
 
 export async function getHotels(city) {
 
@@ -8,51 +8,31 @@ export async function getHotels(city) {
 
   try {
 
-    const response = await axios.get(HOTEL_API, {
+    const response = await axios.get("https://serpapi.com/search.json", {
       params: {
-        city: city
+        engine: "google_hotels",
+        q: `${city} hotels`,
+        check_in_date: "2026-03-10",
+        check_out_date: "2026-03-11",
+        adults: 2,
+        currency: "USD",
+        gl: "us",
+        hl: "en",
+        api_key: SERP_API_KEY
       }
     });
 
-    const hotels = response.data || [];
+    const hotels = response.data.properties || [];
 
-    const parsedHotels = hotels.map((item) => {
-
-      const hotelInfo = item[0];
-      const vendors = item[1] || [];
-
-      let lowestPrice = null;
-      let bestVendor = null;
-
-      vendors.forEach((v) => {
-
-        const prices = [
-          { price: v.price1, tax: v.tax1, vendor: v.vendor1 },
-          { price: v.price2, tax: v.tax2, vendor: v.vendor2 },
-          { price: v.price3, tax: v.tax3, vendor: v.vendor3 },
-          { price: v.price4, tax: v.tax4, vendor: v.vendor4 }
-        ];
-
-        prices.forEach((p) => {
-
-          if (!p.price) return;
-
-          const total = Number(p.price) + Number(p.tax || 0);
-
-          if (lowestPrice === null || total < lowestPrice) {
-            lowestPrice = total;
-            bestVendor = p.vendor;
-          }
-
-        });
-
-      });
+    const parsedHotels = hotels.slice(0, 5).map((hotel) => {
 
       return {
-        name: hotelInfo.hotelName,
-        hotel_id: hotelInfo.hotelId,
-        price_per_night: lowestPrice ? `$${lowestPrice}` : "N/A",
-        best_vendor: bestVendor
+        name: hotel.name,
+        rating: hotel.overall_rating || "N/A",
+        reviews: hotel.reviews || 0,
+        price_per_night: hotel.rate_per_night?.lowest || "N/A",
+        location: hotel.address || city,
+        thumbnail: hotel.images?.[0]?.thumbnail || null
       };
 
     });
@@ -62,6 +42,7 @@ export async function getHotels(city) {
   } catch (err) {
 
     console.error("Hotel API error:", err.message);
+
     return [];
 
   }
