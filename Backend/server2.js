@@ -5,6 +5,8 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 
+import Stripe from "stripe";
+
 
 import { retrieveDestinationData } from "./services/retrieverService.js";
 import { getFlights } from "./services/flightService.js";
@@ -23,6 +25,59 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+
+app.post("/api/create-stripe-checkout", async (req, res) => {
+
+  try {
+
+    const { amount } = req.body;
+
+    if (!amount) {
+      return res.status(400).json({ error: "Amount required" });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+
+      payment_method_types: ["card"],
+
+      line_items: [
+        {
+          price_data: {
+            currency: "inr",
+            product_data: {
+              name: "Voyager AI Trip Booking"
+            },
+            unit_amount: Number(amount) * 100
+          },
+          quantity: 1
+        }
+      ],
+
+      mode: "payment",
+
+      success_url: "http://localhost:5173/payment-success",
+      cancel_url: "http://localhost:5173/payment-cancel"
+
+    });
+
+    res.json({
+      url: session.url
+    });
+
+  } catch (err) {
+
+    console.error("Stripe error:", err);
+
+    res.status(500).json({
+      error: "Stripe checkout failed"
+    });
+
+  }
+
+});
 /*
 POST BODY EXAMPLE
 

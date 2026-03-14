@@ -27,7 +27,7 @@ export default function Response() {
   
       try {
   
-        const res = await fetch("http://localhost:3000/api/trip", {
+        const res = await fetch(`${API}/api/trip`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -83,7 +83,7 @@ export default function Response() {
 
     try {
   
-      const res = await fetch("http://localhost:3000/api/create-checkout", {
+      const res = await fetch(`${API}/api/create-stripe-checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -97,13 +97,11 @@ export default function Response() {
   
       if (session.url) {
         window.location.href = session.url;
-      } else {
-        alert("Stripe session not created");
       }
   
     } catch (err) {
       console.error(err);
-      alert("Payment error");
+      alert("Stripe payment failed");
     }
   
   };
@@ -480,7 +478,7 @@ Estimated Trip Cost
 </p>
 
 <p className="text-3xl font-bold text-orange-400">
-₹{(data?.estimated_trip_cost?.total_estimated_cost || 0).toLocaleString()}
+₹{totalCost.toLocaleString()}
 </p>
 
 </div>
